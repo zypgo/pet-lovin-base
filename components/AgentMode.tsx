@@ -127,7 +127,8 @@ const AgentMode: React.FC = () => {
         clearFile();
 
         try {
-            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+            const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
             const payload: any = { message: currentInput, deepSearch: useDeepSearch };
             if (currentFile) {
                 payload.imageBase64 = await fileToBase64(currentFile);
@@ -141,7 +142,7 @@ const AgentMode: React.FC = () => {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
                 },
                 body: JSON.stringify(payload),
             });
