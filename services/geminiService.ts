@@ -84,11 +84,16 @@ export async function getPetHealthAdvice(question: string): Promise<{ advice: st
 export async function editPetImage(file: File, prompt: string): Promise<EditedImageResult> {
   try {
     const imagePart = await fileToGenerativePart(file);
-    const baseUrl = window.location.origin;
-    const response = await fetch(`${baseUrl}/api/gemini/edit-image`, {
+    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/image-edit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: imagePart.inlineData.data, mimeType: file.type, prompt }),
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ imageBase64: imagePart.inlineData.data, prompt }),
     });
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
@@ -103,17 +108,43 @@ export async function editPetImage(file: File, prompt: string): Promise<EditedIm
 
 export async function createPetStoryPost(story: string): Promise<SocialPost> {
   try {
-    const baseUrl = window.location.origin;
-    const response = await fetch(`${baseUrl}/api/gemini/story-post`, {
+    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
+    
+    // First, generate caption using the existing Gemini endpoint
+    const captionResponse = await fetch(`${window.location.origin}/api/gemini/story-post`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ story }),
+      body: JSON.stringify({ story, captionOnly: true }),
     });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Create story post failed: ${response.status} ${errText}`);
+    
+    if (!captionResponse.ok) {
+      const errText = await captionResponse.text().catch(() => '');
+      throw new Error(`Caption generation failed: ${captionResponse.status} ${errText}`);
     }
-    return await response.json();
+    
+    const { caption, imagePrompt } = await captionResponse.json();
+    
+    // Now generate image using Lovable AI
+    const imageResponse = await fetch(`${SUPABASE_URL}/functions/v1/image-generate`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ 
+        prompt: `Create a cute, artistic image based on this prompt: ${imagePrompt}. The image should be suitable for social media sharing with a square 1:1 aspect ratio.`
+      }),
+    });
+    
+    if (!imageResponse.ok) {
+      const errText = await imageResponse.text().catch(() => '');
+      throw new Error(`Image generation failed: ${imageResponse.status} ${errText}`);
+    }
+    
+    const { imageUrl } = await imageResponse.json();
+    
+    return { caption, imageUrl };
   } catch (error) {
     console.error('Error in createPetStoryPost:', error);
     throw new Error('Failed to create the social media post. Please try again.');

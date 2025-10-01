@@ -369,7 +369,7 @@ app.post('/api/gemini/edit-image', aiLimiter, async (req, res) => {
 app.post('/api/gemini/story-post', aiLimiter, async (req, res) => {
   try {
     if (!requireGemini(res)) return;
-    const { story } = req.body || {};
+    const { story, captionOnly } = req.body || {};
     if (!story) {
       return res.status(400).json({ error: 'story is required' });
     }
@@ -394,6 +394,11 @@ app.post('/api/gemini/story-post', aiLimiter, async (req, res) => {
     const { caption, imagePrompt } = JSON.parse(captionResp.text || '{}');
     if (!caption || !imagePrompt) {
       return res.status(500).json({ error: 'AI failed to generate caption/image prompt' });
+    }
+
+    // If captionOnly is true, return just the caption and imagePrompt (for use with Lovable AI image generation)
+    if (captionOnly) {
+      return res.json({ caption, imagePrompt });
     }
 
     // Generate image
