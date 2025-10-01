@@ -111,11 +111,14 @@ export async function createPetStoryPost(story: string): Promise<SocialPost> {
     const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
     
-    // First, generate caption using the existing Gemini endpoint
-    const captionResponse = await fetch(`${window.location.origin}/api/gemini/story-post`, {
+    // First, generate caption using Supabase edge function
+    const captionResponse = await fetch(`${SUPABASE_URL}/functions/v1/story-caption`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ story, captionOnly: true }),
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ story }),
     });
     
     if (!captionResponse.ok) {
