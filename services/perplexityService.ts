@@ -37,13 +37,14 @@ export interface SearchResult {
 
 export const searchPerplexity = async (query: string): Promise<SearchResult> => {
   try {
-    // Get the current domain for API calls
-    const baseUrl = window.location.origin;
+    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
     
-    const response = await fetch(`${baseUrl}/api/search`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
       },
       body: JSON.stringify({ query }),
     });
