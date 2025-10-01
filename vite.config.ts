@@ -17,8 +17,11 @@ export default defineConfig(({ mode }) => {
         }
       },
       plugins: [react()],
-      // Remove API key injection into frontend – keys remain server-side only
-      define: {},
+      define: {
+        'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+        'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_SUPABASE_PUBLISHABLE_KEY),
+        'import.meta.env.VITE_SUPABASE_PROJECT_ID': JSON.stringify(env.VITE_SUPABASE_PROJECT_ID),
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
