@@ -4,12 +4,15 @@ import { identifyPet, PetIdentificationResult } from '../services/geminiService'
 import Spinner from './Spinner';
 import ImageInput from './ImageInput';
 import PetInfoDisplay from './PetInfoDisplay';
+import { supabase } from '../src/integrations/supabase/client';
+import { useAuth } from '../src/contexts/AuthContext';
 
 const PetIdentifier: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<PetIdentificationResult | null>(null);
   const [error, setError] = useState<string>('');
+  const { user } = useAuth();
 
   const handleIdentify = async () => {
     if (!file) {
@@ -22,6 +25,33 @@ const PetIdentifier: React.FC = () => {
     try {
       const response = await identifyPet(file);
       setResult(response);
+
+      // Save to database
+      if (user && response) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Image = reader.result as string;
+          
+          const { error: dbError } = await supabase
+            .from('pet_identifications')
+            .insert({
+              user_id: user.id,
+              image_url: base64Image,
+              breed: response.breed,
+              species: response.species,
+              confidence: response.confidence,
+              physical_characteristics: response.physicalCharacteristics,
+              temperament: response.temperament,
+              care_needs: response.careNeeds,
+              health_considerations: response.healthConsiderations || []
+            });
+
+          if (dbError) {
+            console.error('Failed to save identification:', dbError);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {

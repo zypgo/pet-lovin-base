@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPetStoryPost } from '../services/geminiService';
 import Spinner from './Spinner';
 import { SocialPost } from '../types';
+import { supabase } from '../src/integrations/supabase/client';
+import { useAuth } from '../src/contexts/AuthContext';
 
 const MicrophoneIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -30,6 +32,7 @@ const PetStoryCreator: React.FC<PetStoryCreatorProps> = ({ addImageToGallery }) 
   const [error, setError] = useState<string>('');
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const storyRef = useRef(story);
+  const { user } = useAuth();
   storyRef.current = story;
 
   useEffect(() => {
@@ -74,6 +77,16 @@ const PetStoryCreator: React.FC<PetStoryCreatorProps> = ({ addImageToGallery }) 
       const response = await createPetStoryPost(story);
       setResult(response);
       addImageToGallery(response.imageUrl);
+      
+      // Save to database
+      if (user) {
+        await supabase.from('pet_stories').insert({
+          user_id: user.id,
+          story,
+          caption: response.caption,
+          image_url: response.imageUrl
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {

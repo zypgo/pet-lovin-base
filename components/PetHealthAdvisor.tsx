@@ -5,6 +5,8 @@ import { searchPerplexity, SearchResult } from '../services/perplexityService';
 import Spinner from './Spinner';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { supabase } from '../src/integrations/supabase/client';
+import { useAuth } from '../src/contexts/AuthContext';
 marked.setOptions({ gfm: true });
 
 const PetHealthAdvisor: React.FC = () => {
@@ -14,6 +16,7 @@ const PetHealthAdvisor: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [useDeepSearch, setUseDeepSearch] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+  const { user } = useAuth();
 
   const handleGetAdvice = async () => {
     if (!question) {
@@ -55,6 +58,16 @@ Please provide a comprehensive, caring response that combines this research with
           const response = await getPetHealthAdvice(question);
           setResult(response.advice);
           
+          // Save to database
+          if (user) {
+            await supabase.from('health_consultations').insert({
+              user_id: user.id,
+              question,
+              advice: response.advice,
+              citations: []
+            });
+          }
+          
           // Clear error after a delay to show it was resolved
           setTimeout(() => setError(''), 3000);
         }
@@ -62,6 +75,16 @@ Please provide a comprehensive, caring response that combines this research with
         // Use standard Gemini response
         const response = await getPetHealthAdvice(question);
         setResult(response.advice);
+        
+        // Save to database
+        if (user) {
+          await supabase.from('health_consultations').insert({
+            user_id: user.id,
+            question,
+            advice: response.advice,
+            citations: []
+          });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
