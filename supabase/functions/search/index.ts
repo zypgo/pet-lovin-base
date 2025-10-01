@@ -89,7 +89,7 @@ Example output: ["dog nutrition requirements", "best dog food for small breeds"]
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-large-128k-online',
+        model: 'sonar',
         messages: [
           {
             role: 'system',
