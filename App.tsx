@@ -8,10 +8,12 @@ import PetHealthAdvisor from './components/PetHealthAdvisor';
 import HappyLifePage from './components/HappyLifePage';
 import AgentMode from './components/AgentMode';
 import Footer from './components/Footer';
+import { useAuth } from './src/contexts/AuthContext';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.Agent);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const { user, signOut } = useAuth();
 
   const addImageToGallery = useCallback((imageUrl: string) => {
     // Add new images to the front of the gallery
@@ -38,6 +40,20 @@ const App: React.FC = () => {
       <Header />
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* User Info Bar */}
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 flex justify-between items-center">
+            <div className="text-white">
+              <span className="text-sm">👋 欢迎回来,</span>
+              <span className="font-bold ml-2">{user?.user_metadata?.username || user?.email}</span>
+            </div>
+            <button
+              onClick={signOut}
+              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              退出登录
+            </button>
+          </div>
+          
           <Nav activePage={activePage} setActivePage={setActivePage} />
           <div className="p-6 md:p-10">
             {renderPage()}

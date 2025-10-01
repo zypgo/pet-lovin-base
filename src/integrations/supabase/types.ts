@@ -14,7 +14,156 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      gallery_images: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string
+          likes_count: number
+          storage_path: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url: string
+          likes_count?: number
+          storage_path: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string
+          likes_count?: number
+          storage_path?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      health_consultations: {
+        Row: {
+          advice: string
+          citations: Json | null
+          created_at: string
+          id: string
+          question: string
+          user_id: string
+        }
+        Insert: {
+          advice: string
+          citations?: Json | null
+          created_at?: string
+          id?: string
+          question: string
+          user_id: string
+        }
+        Update: {
+          advice?: string
+          citations?: Json | null
+          created_at?: string
+          id?: string
+          question?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pet_identifications: {
+        Row: {
+          breed: string
+          care_needs: Json | null
+          confidence: number
+          created_at: string
+          health_considerations: Json | null
+          id: string
+          image_url: string
+          physical_characteristics: Json | null
+          species: string
+          temperament: Json | null
+          user_id: string
+        }
+        Insert: {
+          breed: string
+          care_needs?: Json | null
+          confidence: number
+          created_at?: string
+          health_considerations?: Json | null
+          id?: string
+          image_url: string
+          physical_characteristics?: Json | null
+          species: string
+          temperament?: Json | null
+          user_id: string
+        }
+        Update: {
+          breed?: string
+          care_needs?: Json | null
+          confidence?: number
+          created_at?: string
+          health_considerations?: Json | null
+          id?: string
+          image_url?: string
+          physical_characteristics?: Json | null
+          species?: string
+          temperament?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pet_stories: {
+        Row: {
+          caption: string
+          created_at: string
+          id: string
+          image_url: string
+          story: string
+          user_id: string
+        }
+        Insert: {
+          caption: string
+          created_at?: string
+          id?: string
+          image_url: string
+          story: string
+          user_id: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          story?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
