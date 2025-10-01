@@ -6,6 +6,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to call other edge functions
+async function callEdgeFunction(functionName: string, payload: any) {
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`${functionName} failed: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -30,18 +52,111 @@ serve(async (req) => {
       );
     }
 
-    // Simple response for now - using Gemini to chat
-    const systemPrompt = `You are a helpful Pet Home AI assistant. You help users with:
-- Pet identification (when they share images)
-- Pet health advice
-- General pet care questions
-- Pet-related research
+    console.log('Agent processing:', { hasMessage: !!message, hasImage: !!imageBase64, deepSearch });
 
-Keep responses friendly, concise, and helpful in Chinese.`;
+    // Define available tools
+    const tools = [
+      {
+        name: "identify_pet",
+        description: "Identifies pet species and breed from an image. Use when user asks about pet identification or shares a pet photo.",
+        parameters: {
+          type: "object",
+          properties: {
+            imageBase64: { type: "string", description: "Base64 encoded image data" },
+            mimeType: { type: "string", description: "Image MIME type" }
+          },
+          required: ["imageBase64", "mimeType"]
+        }
+      },
+      {
+        name: "get_pet_health_advice",
+        description: "Provides pet health advice and recommendations. Use when user asks about pet health, symptoms, care, or medical concerns. Set deepSearch to true for research-backed answers.",
+        parameters: {
+          type: "object",
+          properties: {
+            question: { type: "string", description: "The health question or concern" },
+            deepSearch: { type: "boolean", description: "Whether to use deep research for comprehensive answer" }
+          },
+          required: ["question"]
+        }
+      },
+      {
+        name: "edit_pet_image",
+        description: "Edits or modifies a pet image based on instructions. Use when user wants to edit, enhance, or modify a pet photo.",
+        parameters: {
+          type: "object",
+          properties: {
+            imageBase64: { type: "string", description: "Base64 encoded image data" },
+            mimeType: { type: "string", description: "Image MIME type" },
+            prompt: { type: "string", description: "Edit instructions" }
+          },
+          required: ["imageBase64", "mimeType", "prompt"]
+        }
+      },
+      {
+        name: "create_pet_story",
+        description: "Creates a social media story or post about a pet with generated image and caption. Use when user wants to create content or stories about their pet.",
+        parameters: {
+          type: "object",
+          properties: {
+            prompt: { type: "string", description: "Story or post description" }
+          },
+          required: ["prompt"]
+        }
+      },
+      {
+        name: "web_research",
+        description: "Performs comprehensive web research on pet-related topics using multiple sources. Use for general pet questions, recommendations, or when detailed research is needed.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Research query" }
+          },
+          required: ["query"]
+        }
+      }
+    ];
 
-    const userMessage = message || "请分析这张宠物图片";
+    // Step 1: Let Gemini decide which tool to use
+    const systemPrompt = `你是Pet Home AI助手。你可以帮助用户：
+- 识别宠物品种（当用户分享图片时）
+- 提供宠物健康建议（普通或深度研究）
+- 编辑宠物照片
+- 创建宠物故事/社交媒体内容
+- 进行网络研究回答宠物相关问题
 
-    // Call Gemini API
+分析用户的请求并选择最合适的工具。如果用户上传了图片，优先考虑图片相关的工具。`;
+
+    const userContent = message || "请分析这张宠物图片";
+
+    // Prepare contents for Gemini
+    const contents = [{
+      parts: [
+        ...(imageBase64 ? [{ inline_data: { mime_type: mimeType, data: imageBase64 } }] : []),
+        { text: userContent }
+      ]
+    }];
+
+    // Call Gemini with function calling
+    const geminiPayload: any = {
+      contents,
+      tools: [{
+        function_declarations: tools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters
+        }))
+      }],
+      systemInstruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 2048,
+      }
+    };
+
+    console.log('Calling Gemini for tool selection...');
     const geminiResponse = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
@@ -50,18 +165,7 @@ Keep responses friendly, concise, and helpful in Chinese.`;
           'Content-Type': 'application/json',
           'x-goog-api-key': GEMINI_API_KEY,
         },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              ...(imageBase64 ? [{ inline_data: { mime_type: mimeType, data: imageBase64 } }] : []),
-              { text: `${systemPrompt}\n\nUser: ${userMessage}` }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-          }
-        })
+        body: JSON.stringify(geminiPayload)
       }
     );
 
@@ -75,13 +179,94 @@ Keep responses friendly, concise, and helpful in Chinese.`;
     }
 
     const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+    const candidate = geminiData.candidates?.[0];
+    const functionCall = candidate?.content?.parts?.[0]?.functionCall;
+
+    console.log('Gemini response:', { 
+      hasFunctionCall: !!functionCall, 
+      functionName: functionCall?.name 
+    });
+
+    // Step 2: Execute the selected tool
+    let result = null;
+    const toolCalls = [];
+
+    if (functionCall) {
+      const toolName = functionCall.name;
+      const toolArgs = functionCall.args || {};
+      
+      toolCalls.push({ name: toolName, args: toolArgs });
+      console.log(`Executing tool: ${toolName}`);
+
+      try {
+        switch (toolName) {
+          case 'identify_pet':
+            result = await callEdgeFunction('pet-identify', {
+              imageBase64: toolArgs.imageBase64 || imageBase64,
+              mimeType: toolArgs.mimeType || mimeType
+            });
+            break;
+
+          case 'get_pet_health_advice':
+            if (toolArgs.deepSearch || deepSearch) {
+              // Use search function for deep research
+              const searchResult = await callEdgeFunction('search', {
+                query: toolArgs.question
+              });
+              result = searchResult;
+            } else {
+              // Use standard health advice
+              result = await callEdgeFunction('health-advice', {
+                question: toolArgs.question,
+                imageBase64: imageBase64,
+                mimeType: mimeType
+              });
+            }
+            break;
+
+          case 'edit_pet_image':
+            result = await callEdgeFunction('image-edit', {
+              imageBase64: toolArgs.imageBase64 || imageBase64,
+              mimeType: toolArgs.mimeType || mimeType,
+              prompt: toolArgs.prompt
+            });
+            break;
+
+          case 'create_pet_story':
+            result = await callEdgeFunction('story-caption', {
+              prompt: toolArgs.prompt
+            });
+            break;
+
+          case 'web_research':
+            result = await callEdgeFunction('search', {
+              query: toolArgs.query
+            });
+            break;
+
+          default:
+            console.warn(`Unknown tool: ${toolName}`);
+        }
+
+        console.log('Tool execution completed:', { toolName, hasResult: !!result });
+
+      } catch (error) {
+        console.error(`Tool execution error for ${toolName}:`, error);
+        // Return error message as result
+        result = {
+          error: `执行工具 ${toolName} 时出错: ${error.message}`
+        };
+      }
+    }
+
+    // Step 3: Return response
+    const responseText = candidate?.content?.parts?.find(p => p.text)?.text;
 
     return new Response(
       JSON.stringify({ 
-        messages: [{ role: 'model', content: responseText }],
-        result: null,
-        toolCalls: []
+        messages: responseText ? [{ role: 'model', content: responseText }] : [],
+        result: result,
+        toolCalls: toolCalls
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -89,7 +274,10 @@ Keep responses friendly, concise, and helpful in Chinese.`;
   } catch (error) {
     console.error('Agent chat error:', error);
     return new Response(
-      JSON.stringify({ error: 'Agent failed', details: error.message }),
+      JSON.stringify({ 
+        error: 'Agent failed', 
+        details: error instanceof Error ? error.message : String(error)
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
