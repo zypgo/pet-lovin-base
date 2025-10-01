@@ -62,25 +62,24 @@ export async function identifyPet(file: File): Promise<PetIdentificationResult> 
 
 export async function getPetHealthAdvice(question: string): Promise<{ advice: string }> {
   try {
-    const baseUrl = window.location.origin;
-    const response = await fetch(`${baseUrl}/api/gemini/health`, {
+    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/health-advice`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
       body: JSON.stringify({ question }),
     });
+    
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
       throw new Error(`Health advice failed: ${response.status} ${errText}`);
     }
-    const data = await response.json();
-    if (data?.fallback) {
-      // Call simple fallback
-      const simpleResp = await fetch(`${baseUrl}/api/gemini/health-simple`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question })
-      });
-      if (simpleResp.ok) return await simpleResp.json();
-    }
-    return data;
+    
+    return await response.json();
   } catch (error) {
     console.error('Error in getPetHealthAdvice:', error);
     throw new Error('Failed to get health advice. Please try again.');

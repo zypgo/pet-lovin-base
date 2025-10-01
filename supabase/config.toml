@@ -3,6 +3,9 @@ project_id = "betukaetgtzkfhxhwqma"
 [functions.agent-chat]
 verify_jwt = false
 
+[functions.health-advice]
+verify_jwt = false
+
 [functions.image-edit]
 verify_jwt = false
 
