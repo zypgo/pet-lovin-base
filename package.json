@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.js"
+    "build:dev": "vite build --mode development"
   },
   "dependencies": {
     "@google/genai": "^1.20.0",
