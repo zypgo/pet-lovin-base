@@ -1,0 +1,7 @@
+{
+  "name": "Pet Home",
+  "description": "An AI-powered application for pet lovers. It helps you identify pet breeds, create fun edited images of your pets, and generate social media stories and visuals.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
