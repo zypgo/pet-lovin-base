@@ -22,89 +22,136 @@ serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
       return new Response(
-        JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }),
+        JSON.stringify({ error: 'Service configuration error. Please contact support.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const prompt = `Analyze this pet image in detail and return ONLY valid JSON with this exact structure:
-{
-  "breed": "specific breed name",
-  "species": "cat/dog/bird/etc",
-  "confidence": 0.95,
-  "physicalCharacteristics": {
-    "size": "small/medium/large",
-    "coat": "short/long/curly/etc",
-    "colors": ["color1", "color2"]
-  },
-  "temperament": {
-    "personality": ["trait1", "trait2", "trait3"],
-    "energyLevel": "low/moderate/high",
-    "familyFriendly": "yes/moderate/requires_experience"
-  },
-  "careNeeds": {
-    "exercise": "brief description",
-    "grooming": "brief description",
-    "feeding": "brief description",
-    "specialNeeds": "any special considerations (optional)"
-  },
-  "healthConsiderations": ["consideration1", "consideration2"]
-}
+    console.log('Analyzing pet image with Lovable AI');
 
-Provide accurate, breed-specific information. Return ONLY the JSON object, no markdown formatting.`;
+    // Convert base64 image to data URL format
+    const imageDataUrl = `data:${mimeType};base64,${imageBase64}`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
               {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: imageBase64
+                type: "text",
+                text: "Analyze this pet image in detail. Identify the breed and species, and provide comprehensive information."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageDataUrl
                 }
               }
             ]
-          }],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 2048
           }
-        })
-      }
-    );
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "identify_pet",
+              description: "Identify and analyze a pet from an image",
+              parameters: {
+                type: "object",
+                properties: {
+                  breed: { type: "string", description: "Specific breed name" },
+                  species: { type: "string", description: "Animal species (cat/dog/bird/etc)" },
+                  confidence: { type: "number", description: "Confidence score (0-1)" },
+                  physicalCharacteristics: {
+                    type: "object",
+                    properties: {
+                      size: { type: "string", description: "Size category" },
+                      coat: { type: "string", description: "Coat type" },
+                      colors: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["size", "coat", "colors"]
+                  },
+                  temperament: {
+                    type: "object",
+                    properties: {
+                      personality: { type: "array", items: { type: "string" } },
+                      energyLevel: { type: "string" },
+                      familyFriendly: { type: "string" }
+                    },
+                    required: ["personality", "energyLevel", "familyFriendly"]
+                  },
+                  careNeeds: {
+                    type: "object",
+                    properties: {
+                      exercise: { type: "string" },
+                      grooming: { type: "string" },
+                      feeding: { type: "string" },
+                      specialNeeds: { type: "string" }
+                    },
+                    required: ["exercise", "grooming", "feeding"]
+                  },
+                  healthConsiderations: {
+                    type: "array",
+                    items: { type: "string" }
+                  }
+                },
+                required: ["breed", "species", "confidence", "physicalCharacteristics", "temperament", "careNeeds"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "identify_pet" } }
+      })
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
+      console.error('Lovable AI error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: `Gemini API error: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to analyze pet image' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!text) {
-      console.error('No text in Gemini response:', JSON.stringify(data));
+    console.log('Pet identification response received');
+
+    // Extract tool call result
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall || !toolCall.function?.arguments) {
       return new Response(
-        JSON.stringify({ error: 'No content in Gemini response' }),
+        JSON.stringify({ error: 'No valid response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Parse JSON from response
-    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const result = JSON.parse(cleanText);
+    const result = JSON.parse(toolCall.function.arguments);
 
     return new Response(
       JSON.stringify(result),
