@@ -37,12 +37,18 @@ export interface PetIdentificationResult {
 export async function identifyPet(file: File): Promise<PetIdentificationResult> {
   try {
     const imagePart = await fileToGenerativePart(file);
-    const baseUrl = window.location.origin;
-    const response = await fetch(`${baseUrl}/api/gemini/identify`, {
+    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/pet-identify`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
       body: JSON.stringify({ imageBase64: imagePart.inlineData.data, mimeType: file.type }),
     });
+    
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
       throw new Error(`Identify failed: ${response.status} ${errText}`);

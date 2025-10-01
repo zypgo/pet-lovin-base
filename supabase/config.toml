@@ -9,5 +9,8 @@ verify_jwt = false
 [functions.image-generate]
 verify_jwt = false
 
+[functions.pet-identify]
+verify_jwt = false
+
 [functions.story-caption]
 verify_jwt = false
