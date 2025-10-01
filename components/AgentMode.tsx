@@ -127,7 +127,7 @@ const AgentMode: React.FC = () => {
         clearFile();
 
         try {
-            const baseUrl = window.location.origin;
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
             const payload: any = { message: currentInput, deepSearch: useDeepSearch };
             if (currentFile) {
                 payload.imageBase64 = await fileToBase64(currentFile);
@@ -137,9 +137,12 @@ const AgentMode: React.FC = () => {
             const toolCallId = `tool-${Date.now()}`;
             setMessages(prev => [...prev, { id: toolCallId, role: 'model', content: <Spinner text="Thinking... (awaiting tool)" /> }]);
 
-            const resp = await fetch(`${baseUrl}/api/agent/chat`, {
+            const resp = await fetch(`${SUPABASE_URL}/functions/v1/agent-chat`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+                },
                 body: JSON.stringify(payload),
             });
             const data = await resp.json().catch(() => ({}));
