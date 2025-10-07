@@ -1,4 +1,5 @@
 import { SocialPost, EditedImageResult } from '../types';
+import { supabase } from '../src/integrations/supabase/client';
 
 async function fileToGenerativePart(file: File) {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -37,23 +38,16 @@ export interface PetIdentificationResult {
 export async function identifyPet(file: File): Promise<PetIdentificationResult> {
   try {
     const imagePart = await fileToGenerativePart(file);
-    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
     
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/pet-identify`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      },
-      body: JSON.stringify({ imageBase64: imagePart.inlineData.data, mimeType: file.type }),
+    const { data, error } = await supabase.functions.invoke('pet-identify', {
+      body: { 
+        imageBase64: imagePart.inlineData.data, 
+        mimeType: file.type 
+      }
     });
     
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Identify failed: ${response.status} ${errText}`);
-    }
-    return await response.json();
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error('Error in identifyPet:', error);
     throw new Error('Failed to analyze the pet image. Please try again.');
@@ -62,24 +56,12 @@ export async function identifyPet(file: File): Promise<PetIdentificationResult> 
 
 export async function getPetHealthAdvice(question: string): Promise<{ advice: string }> {
   try {
-    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
-    
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/health-advice`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      },
-      body: JSON.stringify({ question }),
+    const { data, error } = await supabase.functions.invoke('health-advice', {
+      body: { question }
     });
     
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Health advice failed: ${response.status} ${errText}`);
-    }
-    
-    return await response.json();
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error('Error in getPetHealthAdvice:', error);
     throw new Error('Failed to get health advice. Please try again.');
@@ -89,22 +71,16 @@ export async function getPetHealthAdvice(question: string): Promise<{ advice: st
 export async function editPetImage(file: File, prompt: string): Promise<EditedImageResult> {
   try {
     const imagePart = await fileToGenerativePart(file);
-    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
     
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/image-edit`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      },
-      body: JSON.stringify({ imageBase64: imagePart.inlineData.data, prompt }),
+    const { data, error } = await supabase.functions.invoke('image-edit', {
+      body: { 
+        imageBase64: imagePart.inlineData.data, 
+        prompt 
+      }
     });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Edit image failed: ${response.status} ${errText}`);
-    }
-    return await response.json();
+    
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error('Error in editPetImage:', error);
     throw new Error('Failed to edit the pet image. Please try a different image or prompt.');
@@ -113,44 +89,25 @@ export async function editPetImage(file: File, prompt: string): Promise<EditedIm
 
 export async function createPetStoryPost(story: string): Promise<SocialPost> {
   try {
-    const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
-    
-    // First, generate caption using Supabase edge function
-    const captionResponse = await fetch(`${SUPABASE_URL}/functions/v1/story-caption`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      },
-      body: JSON.stringify({ story }),
+    // First, generate caption using edge function
+    const { data: captionData, error: captionError } = await supabase.functions.invoke('story-caption', {
+      body: { story }
     });
     
-    if (!captionResponse.ok) {
-      const errText = await captionResponse.text().catch(() => '');
-      throw new Error(`Caption generation failed: ${captionResponse.status} ${errText}`);
-    }
+    if (captionError) throw captionError;
     
-    const { caption, imagePrompt } = await captionResponse.json();
+    const { caption, imagePrompt } = captionData;
     
     // Now generate image using Lovable AI
-    const imageResponse = await fetch(`${SUPABASE_URL}/functions/v1/image-generate`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      },
-      body: JSON.stringify({ 
+    const { data: imageData, error: imageError } = await supabase.functions.invoke('image-generate', {
+      body: { 
         prompt: `Create a cute, artistic image based on this prompt: ${imagePrompt}. The image should be suitable for social media sharing with a square 1:1 aspect ratio.`
-      }),
+      }
     });
     
-    if (!imageResponse.ok) {
-      const errText = await imageResponse.text().catch(() => '');
-      throw new Error(`Image generation failed: ${imageResponse.status} ${errText}`);
-    }
+    if (imageError) throw imageError;
     
-    const { imageUrl } = await imageResponse.json();
+    const { imageUrl } = imageData;
     
     return { caption, imageUrl };
   } catch (error) {
