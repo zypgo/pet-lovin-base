@@ -31,6 +31,7 @@ serve(async (req) => {
     }
 
     console.log('Generating caption for story');
+    console.log('LOVABLE_API_KEY present:', !!LOVABLE_API_KEY);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
