@@ -22,11 +22,11 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is not configured');
       return new Response(
-        JSON.stringify({ error: 'API key is not configured' }),
+        JSON.stringify({ error: 'GEMINI_API_KEY is not configured. Please add your Gemini API key in the backend.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -60,29 +60,26 @@ serve(async (req) => {
 Provide accurate, breed-specific information. Return ONLY the JSON object, no markdown formatting.`;
 
     const response = await fetch(
-      'https://ai.gateway.lovable.dev/v1/chat/completions',
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
+          contents: [{
+            parts: [
+              { text: prompt },
               {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${imageBase64}`
+                inline_data: {
+                  mime_type: mimeType,
+                  data: imageBase64
                 }
               }
             ]
           }],
-          temperature: 0.4,
-          max_tokens: 2048
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 2048
+          }
         })
       }
     );
@@ -97,12 +94,12 @@ Provide accurate, breed-specific information. Return ONLY the JSON object, no ma
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!text) {
-      console.error('No text in AI response:', JSON.stringify(data));
+      console.error('No text in Gemini response:', JSON.stringify(data));
       return new Response(
-        JSON.stringify({ error: 'No content in AI response' }),
+        JSON.stringify({ error: 'No content in Gemini response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
