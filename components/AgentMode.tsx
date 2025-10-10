@@ -50,6 +50,9 @@ interface Message {
     id: string;
     role: 'user' | 'model';
     content: React.ReactNode;
+    textContent?: string; // Store plain text for history
+    result?: any;
+    toolCalls?: Array<{ name: string; args: any }>;
 }
 
 const AgentMode: React.FC = () => {
@@ -63,13 +66,34 @@ const AgentMode: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const clearConversation = () => {
+        setMessages([{
+            id: 'init',
+            role: 'model',
+            content: (
+                <div>
+                    Hello! I'm your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?
+                </div>
+            ),
+            textContent: "Hello! I'm your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?"
+        }]);
+        setInput('');
+        clearFile();
+        setError('');
+    };
+
     // Welcome message
     useEffect(() => {
-        setMessages([{ id: 'init', role: 'model', content: (
-          <div>
-            Hello! I'm your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?
-          </div>
-        ) }]);
+        setMessages([{
+            id: 'init',
+            role: 'model',
+            content: (
+                <div>
+                    Hello! I'm your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?
+                </div>
+            ),
+            textContent: "Hello! I'm your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?"
+        }]);
     }, []);
 
     // Scroll to bottom
@@ -118,7 +142,12 @@ const AgentMode: React.FC = () => {
                 <p>{input}</p>
             </div>
         );
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: userMessageContent }]);
+        setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'user',
+            content: userMessageContent,
+            textContent: currentInput
+        }]);
 
         const currentInput = input;
         const currentFile = file;
@@ -129,7 +158,20 @@ const AgentMode: React.FC = () => {
         try {
             const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
-            const payload: any = { message: currentInput, deepSearch: useDeepSearch };
+            
+            // Build conversation history (exclude welcome message and current input)
+            const conversationHistory = messages
+                .filter(m => m.id !== 'init' && m.textContent)
+                .map(m => ({
+                    role: m.role === 'user' ? 'user' : 'assistant',
+                    content: m.textContent || ''
+                }));
+
+            const payload: any = {
+                message: currentInput,
+                deepSearch: useDeepSearch,
+                conversationHistory: conversationHistory
+            };
             if (currentFile) {
                 payload.imageBase64 = await fileToBase64(currentFile);
                 payload.mimeType = currentFile.type;
@@ -226,13 +268,25 @@ const AgentMode: React.FC = () => {
                 }
             }
 
+            // Get response text for history
+            const responseText = data?.response || data?.messages?.[0]?.content || '';
+
             if (resultDisplay) {
-                setMessages(prev => [...prev, { id: `res-${Date.now()}`, role: 'model', content: resultDisplay }]);
-            } else {
-                const agentText: string | undefined = data?.messages?.[0]?.content;
-                if (agentText) {
-                    setMessages(prev => [...prev, { id: `msg-${Date.now()}`, role: 'model', content: <MarkdownResult content={agentText} /> }]);
-                }
+                setMessages(prev => [...prev, {
+                    id: `res-${Date.now()}`,
+                    role: 'model',
+                    content: resultDisplay,
+                    textContent: responseText,
+                    result: result,
+                    toolCalls: data?.toolCalls
+                }]);
+            } else if (responseText) {
+                setMessages(prev => [...prev, {
+                    id: `msg-${Date.now()}`,
+                    role: 'model',
+                    content: <MarkdownResult content={responseText} />,
+                    textContent: responseText
+                }]);
             }
             // Remove the thinking bubble after rendering the final result
             setMessages(prev => prev.filter(m => m.id !== toolCallId));
@@ -259,14 +313,27 @@ const AgentMode: React.FC = () => {
     return (
         <div className="min-h-[70vh] bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 rounded-3xl p-6 shadow-2xl border-2 border-pink-200/30" style={{ fontFamily: "'Averia Serif Libre', serif" }}>
             <div className="text-center mb-6">
-                <div className="flex items-center justify-center mb-4">
-                    <div className="relative">
-                        <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
-                            <span className="text-2xl">🤖</span>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex-1"></div>
+                    <div className="flex items-center justify-center">
+                        <div className="relative">
+                            <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
+                                <span className="text-2xl">🤖</span>
+                            </div>
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                            </div>
                         </div>
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                        </div>
+                    </div>
+                    <div className="flex-1 flex justify-end">
+                        {messages.length > 1 && (
+                            <button
+                                onClick={clearConversation}
+                                className="bg-gradient-to-br from-red-400 to-pink-500 text-white font-bold py-2 px-4 rounded-2xl hover:from-red-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-white/30 flex items-center gap-2"
+                            >
+                                🗑️ <span className="hidden sm:inline">清除对话</span>
+                            </button>
+                        )}
                     </div>
                 </div>
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">

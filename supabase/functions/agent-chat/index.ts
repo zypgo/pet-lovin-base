@@ -34,7 +34,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, imageBase64, mimeType, deepSearch } = await req.json();
+    const { message, imageBase64, mimeType, deepSearch, conversationHistory = [] } = await req.json();
     
     if (!message && !imageBase64) {
       return new Response(
@@ -52,7 +52,12 @@ serve(async (req) => {
       );
     }
 
-    console.log('Agent processing:', { hasMessage: !!message, hasImage: !!imageBase64, deepSearch });
+    console.log('Agent processing:', { 
+      hasMessage: !!message, 
+      hasImage: !!imageBase64, 
+      deepSearch,
+      historyLength: conversationHistory.length 
+    });
 
     // Define available tools
     const tools = [
@@ -129,13 +134,32 @@ serve(async (req) => {
 
     const userContent = message || "请分析这张宠物图片";
 
-    // Prepare contents for Gemini
-    const contents = [{
+    // Build conversation history for Gemini
+    const contents = [];
+    
+    // Add conversation history
+    for (const msg of conversationHistory) {
+      if (msg.role === 'user') {
+        contents.push({
+          role: 'user',
+          parts: [{ text: msg.content }]
+        });
+      } else if (msg.role === 'assistant') {
+        contents.push({
+          role: 'model',
+          parts: [{ text: msg.content }]
+        });
+      }
+    }
+    
+    // Add current user message
+    contents.push({
+      role: 'user',
       parts: [
         ...(imageBase64 ? [{ inline_data: { mime_type: mimeType, data: imageBase64 } }] : []),
         { text: userContent }
       ]
-    }];
+    });
 
     // Call Gemini with function calling
     const geminiPayload: any = {
@@ -189,6 +213,7 @@ serve(async (req) => {
 
     // Step 2: Execute the selected tool
     let result = null;
+    let finalResponse = '';
     const toolCalls = [];
 
     if (functionCall) {
@@ -316,21 +341,88 @@ ${formattedResults}
 
         console.log('Tool execution completed:', { toolName, hasResult: !!result });
 
+        // Step 3: Send tool result back to Gemini for final response
+        if (result && !result.error) {
+          console.log('Sending tool result back to Gemini for synthesis...');
+          
+          // Build new conversation with tool response
+          const followUpContents = [...contents];
+          
+          // Add the function call from assistant
+          followUpContents.push({
+            role: 'model',
+            parts: [{ functionCall }]
+          });
+          
+          // Add the function response
+          followUpContents.push({
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                name: toolName,
+                response: { result: JSON.stringify(result) }
+              }
+            }]
+          });
+
+          const synthesisPayload: any = {
+            contents: followUpContents,
+            tools: [{
+              function_declarations: tools.map(tool => ({
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters
+              }))
+            }],
+            systemInstruction: {
+              parts: [{ text: systemPrompt }]
+            },
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 32000,
+            }
+          };
+
+          const synthesisResponse = await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY,
+              },
+              body: JSON.stringify(synthesisPayload)
+            }
+          );
+
+          if (synthesisResponse.ok) {
+            const synthesisData = await synthesisResponse.json();
+            finalResponse = synthesisData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            console.log('Synthesis completed, response length:', finalResponse.length);
+          } else {
+            const errorText = await synthesisResponse.text();
+            console.error('Synthesis error:', errorText);
+            finalResponse = '工具执行成功，但生成回复时出错。';
+          }
+        } else if (result?.error) {
+          finalResponse = `执行出错：${result.error}`;
+        }
+
       } catch (error) {
         console.error(`Tool execution error for ${toolName}:`, error);
-        // Return error message as result
         result = {
           error: `执行工具 ${toolName} 时出错: ${error.message}`
         };
+        finalResponse = `执行工具时出错：${error.message}`;
       }
+    } else {
+      // No tool call, use direct response
+      finalResponse = candidate?.content?.parts?.find(p => p.text)?.text || '';
     }
-
-    // Step 3: Return response
-    const responseText = candidate?.content?.parts?.find(p => p.text)?.text;
 
     return new Response(
       JSON.stringify({ 
-        messages: responseText ? [{ role: 'model', content: responseText }] : [],
+        response: finalResponse,
         result: result,
         toolCalls: toolCalls
       }),
