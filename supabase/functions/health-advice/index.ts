@@ -92,7 +92,7 @@ ${formattedCitations}
           }],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 8000
+            maxOutputTokens: 32000
           }
         })
       }
@@ -150,7 +150,7 @@ async function simpleHealthAdvice(question: string, geminiApiKey: string) {
           }],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 1500
+            maxOutputTokens: 16000
           }
         })
       }

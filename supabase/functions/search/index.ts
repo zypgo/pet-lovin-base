@@ -65,7 +65,7 @@ async function generateQueriesNode(state: SearchState): Promise<Partial<SearchSt
           }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 500
+            maxOutputTokens: 4000
           }
         })
       }
@@ -178,7 +178,7 @@ ${results.join('\n\n')}
           }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 500
+            maxOutputTokens: 4000
           }
         })
       }
@@ -311,7 +311,7 @@ ${formattedCitations}
           }],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 8000
+            maxOutputTokens: 32000
           }
         })
       }
