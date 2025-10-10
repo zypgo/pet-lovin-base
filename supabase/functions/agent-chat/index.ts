@@ -294,7 +294,7 @@ ${formattedResults}
                     }],
                     generationConfig: {
                       temperature: 0.3,
-                      maxOutputTokens: 1500
+                      maxOutputTokens: 4000
                     }
                   })
                 }
