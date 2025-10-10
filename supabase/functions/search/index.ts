@@ -1,10 +1,27 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Use a more stable LangGraph version with explicit CDN path
+import { StateGraph, END } from "https://esm.sh/v135/@langchain/langgraph@0.2.3/web?target=deno&no-check";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Define the state interface
+interface SearchState {
+  query: string;
+  geminiKey: string;
+  perplexityKey: string;
+  initialQueries?: string[];
+  results: string[];
+  citations: string[];
+  needMoreResearch?: boolean;
+  additionalQueries?: string[];
+  finalAnswer?: string;
+  error?: string;
+}
 
 // Retry helper with exponential backoff
 async function withRetry<T>(
@@ -26,10 +43,10 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// Step 1: Generate search queries using Gemini
-async function generateQueries(query: string, geminiKey: string): Promise<string[]> {
-  console.log('Step 1: Generating search queries...');
-  
+// Node 1: Generate search queries using Gemini
+async function generateQueriesNode(state: SearchState): Promise<Partial<SearchState>> {
+  console.log('Node: Generating search queries...');
+  const { query, geminiKey } = state;
   const response = await withRetry(async () => {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
@@ -71,16 +88,14 @@ async function generateQueries(query: string, geminiKey: string): Promise<string
   });
 
   console.log('Generated queries:', response);
-  return response;
+  return { initialQueries: response };
 }
 
-// Step 2: Perform search using Perplexity
-async function performSearch(
-  queries: string[],
-  perplexityKey: string
-): Promise<{ results: string[]; citations: string[] }> {
-  console.log('Step 2: Performing search...');
-  
+// Node 2: Perform initial search using Perplexity
+async function initialSearchNode(state: SearchState): Promise<Partial<SearchState>> {
+  console.log('Node: Performing initial search...');
+  const { initialQueries, perplexityKey } = state;
+  const queries = initialQueries || [];
   const allResults: string[] = [];
   const allCitations: Set<string> = new Set();
 
@@ -130,9 +145,11 @@ async function performSearch(
         if (citation) allCitations.add(citation);
       });
 
+      // Add delay between requests to avoid rate limits
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       console.error(`Search error for query "${query}":`, error);
+      // Continue with other queries even if one fails
     }
   }
 
@@ -143,14 +160,10 @@ async function performSearch(
   };
 }
 
-// Step 3: Reflect on results and decide if more research is needed
-async function reflectOnResults(
-  query: string,
-  results: string[],
-  geminiKey: string
-): Promise<{ needMore: boolean; newQueries: string[] }> {
-  console.log('Step 3: Reflecting on search results...');
-  
+// Node 3: Reflect on search results
+async function reflectNode(state: SearchState): Promise<Partial<SearchState>> {
+  console.log('Node: Reflecting on search results...');
+  const { query, results, geminiKey } = state;
   const response = await withRetry(async () => {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
@@ -196,26 +209,90 @@ ${results.join('\n\n')}
       const parsed = JSON.parse(cleanText);
       console.log('Reflection result:', parsed);
       return {
-        needMore: parsed.needMore || false,
-        newQueries: parsed.newQueries || []
+        needMoreResearch: parsed.needMore,
+        additionalQueries: parsed.newQueries
       };
     } catch {
-      return { needMore: false, newQueries: [] };
+      return { needMoreResearch: false };
     }
   });
 
   return response;
 }
 
-// Step 4: Synthesize final answer
-async function synthesizeAnswer(
-  query: string,
-  results: string[],
-  citations: string[],
-  geminiKey: string
-): Promise<string> {
-  console.log('Step 4: Synthesizing final answer...');
+// Node 4: Perform additional research if needed
+async function additionalSearchNode(state: SearchState): Promise<Partial<SearchState>> {
+  console.log('Node: Performing additional research...');
+  const { additionalQueries, perplexityKey, results, citations } = state;
+  const queries = additionalQueries || [];
   
+  const allResults: string[] = [];
+  const allCitations: Set<string> = new Set(citations);
+
+  for (const query of queries.slice(0, 3)) {
+    try {
+      const response = await withRetry(async () => {
+        const res = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${perplexityKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+              {
+                role: 'system',
+                content: '你是一个专业的宠物健康信息助手。提供准确、详细的信息并附上来源。'
+              },
+              {
+                role: 'user',
+                content: query
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 1500,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Perplexity API error: ${res.status} - ${errorText}`);
+        }
+
+        return res;
+      });
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      const newCitations = data.citations || [];
+
+      if (content) {
+        allResults.push(`查询: ${query}\n结果: ${content}`);
+      }
+
+      newCitations.forEach((citation: string) => {
+        if (citation) allCitations.add(citation);
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(`Search error for query "${query}":`, error);
+    }
+  }
+
+  console.log(`Additional search: ${allResults.length} new results`);
+  return {
+    results: [...results, ...allResults],
+    citations: Array.from(allCitations)
+  };
+}
+
+// Node 5: Synthesize final answer
+async function synthesizeNode(state: SearchState): Promise<Partial<SearchState>> {
+  console.log('Node: Synthesizing final answer...');
+  const { query, results, citations, geminiKey } = state;
+  // Format citations
   const formattedCitations = citations.map((url, idx) => `[^${idx + 1}]: ${url}`).join('\n');
 
   const response = await withRetry(async () => {
@@ -269,14 +346,68 @@ ${formattedCitations}
     }
 
     const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '暂时无法生成回答，请稍后重试。';
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '暂时无法生成回答，请稍后重试。';
+    console.log('Answer synthesized successfully');
+    return { finalAnswer: answer };
   });
 
-  console.log('Answer synthesized successfully');
   return response;
 }
 
-// Main workflow
+// Conditional edge: decide whether to do additional research
+function shouldDoMoreResearch(state: SearchState): string {
+  if (state.needMoreResearch && state.additionalQueries && state.additionalQueries.length > 0) {
+    return "additional_search";
+  }
+  return "synthesize";
+}
+
+// Build the LangGraph workflow
+function buildSearchGraph() {
+  const workflow = new StateGraph({
+    channels: {
+      query: { value: null },
+      geminiKey: { value: null },
+      perplexityKey: { value: null },
+      initialQueries: { value: null },
+      results: { value: null },
+      citations: { value: null },
+      needMoreResearch: { value: null },
+      additionalQueries: { value: null },
+      finalAnswer: { value: null },
+      error: { value: null }
+    }
+  });
+
+  // Add nodes
+  workflow.addNode("generate_queries", generateQueriesNode);
+  workflow.addNode("initial_search", initialSearchNode);
+  workflow.addNode("reflect", reflectNode);
+  workflow.addNode("additional_search", additionalSearchNode);
+  workflow.addNode("synthesize", synthesizeNode);
+
+  // Add edges
+  workflow.setEntryPoint("generate_queries");
+  workflow.addEdge("generate_queries", "initial_search");
+  workflow.addEdge("initial_search", "reflect");
+  
+  // Conditional edge after reflection
+  workflow.addConditionalEdges(
+    "reflect",
+    shouldDoMoreResearch,
+    {
+      "additional_search": "additional_search",
+      "synthesize": "synthesize"
+    }
+  );
+  
+  workflow.addEdge("additional_search", "synthesize");
+  workflow.addEdge("synthesize", END);
+
+  return workflow.compile();
+}
+
+// HTTP server
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -296,52 +427,42 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
     if (!PERPLEXITY_API_KEY || !GEMINI_API_KEY) {
-      console.error('Missing API keys');
+      console.error('Missing API keys:', { 
+        hasPerplexity: !!PERPLEXITY_API_KEY, 
+        hasGemini: !!GEMINI_API_KEY 
+      });
       return new Response(
         JSON.stringify({ error: 'API keys not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('=== Starting Deep Search Workflow ===');
+    console.log('=== Starting LangGraph Search Workflow ===');
     console.log('Query:', query);
 
-    // Step 1: Generate initial queries
-    const initialQueries = await generateQueries(query, GEMINI_API_KEY);
+    // Build and run the LangGraph workflow
+    const graph = buildSearchGraph();
     
-    // Step 2: Perform initial search
-    let searchResult = await performSearch(initialQueries, PERPLEXITY_API_KEY);
-    
-    // Step 3: Reflect and potentially do more research
-    const reflection = await reflectOnResults(query, searchResult.results, GEMINI_API_KEY);
-    
-    if (reflection.needMore && reflection.newQueries.length > 0) {
-      console.log('Step 3.5: Performing additional research...');
-      const additionalResult = await performSearch(reflection.newQueries, PERPLEXITY_API_KEY);
-      
-      // Merge results
-      searchResult.results = [...searchResult.results, ...additionalResult.results];
-      searchResult.citations = [...searchResult.citations, ...additionalResult.citations];
-    }
-    
-    // Step 4: Synthesize final answer
-    const finalAnswer = await synthesizeAnswer(
+    const initialState: SearchState = {
       query,
-      searchResult.results,
-      searchResult.citations,
-      GEMINI_API_KEY
-    );
+      geminiKey: GEMINI_API_KEY,
+      perplexityKey: PERPLEXITY_API_KEY,
+      results: [],
+      citations: []
+    };
 
-    console.log('=== Workflow Completed ===');
+    const finalState = await graph.invoke(initialState);
+
+    console.log('=== LangGraph Workflow Completed ===');
 
     return new Response(
       JSON.stringify({
-        answer_md: finalAnswer,
-        citations: searchResult.citations,
+        answer_md: finalState.finalAnswer,
+        citations: finalState.citations,
         debug: {
-          initialQueries,
-          reflectionNeededMore: reflection.needMore,
-          totalResults: searchResult.results.length
+          initialQueries: finalState.initialQueries,
+          reflectionNeededMore: finalState.needMoreResearch,
+          totalResults: finalState.results.length
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
