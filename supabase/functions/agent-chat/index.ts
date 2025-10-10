@@ -239,9 +239,47 @@ serve(async (req) => {
             break;
 
           case 'web_research':
-            result = await callEdgeFunction('search', {
-              query: toolArgs.query
+            // Simple single-query Perplexity search (not deep research)
+            const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+            if (!PERPLEXITY_API_KEY) {
+              result = { error: 'Perplexity API key not configured' };
+              break;
+            }
+            
+            const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'sonar',
+                messages: [
+                  {
+                    role: 'system',
+                    content: '你是一个专业的宠物健康信息助手。提供准确、实用的信息并附上来源。'
+                  },
+                  {
+                    role: 'user',
+                    content: toolArgs.query
+                  }
+                ],
+                temperature: 0.2,
+                max_tokens: 1500,
+              }),
             });
+
+            if (!perplexityResponse.ok) {
+              const errorText = await perplexityResponse.text();
+              console.error('Perplexity error:', perplexityResponse.status, errorText);
+              result = { error: `搜索失败: ${perplexityResponse.status}` };
+            } else {
+              const perplexityData = await perplexityResponse.json();
+              result = {
+                answer: perplexityData.choices?.[0]?.message?.content || '',
+                citations: perplexityData.citations || []
+              };
+            }
             break;
 
           default:
