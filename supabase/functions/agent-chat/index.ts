@@ -152,7 +152,7 @@ serve(async (req) => {
       },
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 8000,
+        maxOutputTokens: 32000,
       }
     };
 
@@ -294,7 +294,7 @@ ${formattedResults}
                     }],
                     generationConfig: {
                       temperature: 0.3,
-                      maxOutputTokens: 16000
+                      maxOutputTokens: 64000
                     }
                   })
                 }
