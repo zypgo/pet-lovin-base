@@ -99,12 +99,19 @@ ${formattedCitations}
     );
 
     if (!synthesisResponse.ok) {
-      console.error('Gemini synthesis error:', synthesisResponse.status);
+      const errorText = await synthesisResponse.text();
+      console.error('Gemini synthesis error:', synthesisResponse.status, errorText);
       return await simpleHealthAdvice(question, GEMINI_API_KEY);
     }
 
     const synthesisData = await synthesisResponse.json();
+    console.log('Gemini response:', JSON.stringify(synthesisData));
+    
     const advice = synthesisData.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to generate advice at this time.';
+
+    if (advice === 'Unable to generate advice at this time.') {
+      console.error('Gemini returned empty response. Full data:', JSON.stringify(synthesisData));
+    }
 
     console.log('Health advice generated successfully');
 

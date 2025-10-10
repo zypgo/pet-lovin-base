@@ -318,11 +318,20 @@ ${formattedCitations}
     );
 
     if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`Gemini API error: ${res.status} - ${errorText}`);
       throw new Error(`Gemini API error: ${res.status}`);
     }
 
     const data = await res.json();
+    console.log('Gemini synthesis response:', JSON.stringify(data));
+    
     const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '暂时无法生成回答，请稍后重试。';
+    
+    if (answer === '暂时无法生成回答，请稍后重试。') {
+      console.error('Gemini returned empty response. Full data:', JSON.stringify(data));
+    }
+    
     console.log('Answer synthesized successfully');
     return { finalAnswer: answer };
   });
