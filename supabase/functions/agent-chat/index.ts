@@ -239,7 +239,7 @@ serve(async (req) => {
             break;
 
           case 'web_research':
-            // Simple single-query Perplexity search (not deep research)
+            // Simple search using Perplexity Chat Completions
             const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
             if (!PERPLEXITY_API_KEY) {
               result = { error: 'Perplexity API key not configured' };
@@ -253,7 +253,7 @@ serve(async (req) => {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'sonar',
+                model: 'llama-3.1-sonar-small-128k-online',
                 messages: [
                   {
                     role: 'system',

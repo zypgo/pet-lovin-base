@@ -91,71 +91,58 @@ async function generateQueriesNode(state: SearchState): Promise<Partial<SearchSt
   return { initialQueries: response };
 }
 
-// Node 2: Perform initial search using Perplexity
+// Node 2: Perform initial search using Perplexity Search API
 async function initialSearchNode(state: SearchState): Promise<Partial<SearchState>> {
   console.log('Node: Performing initial search...');
   const { initialQueries, perplexityKey } = state;
   const queries = initialQueries || [];
-  const allResults: string[] = [];
+  const allResults: any[] = [];
   const allCitations: Set<string> = new Set();
 
-  for (const query of queries.slice(0, 3)) {
-    try {
-      const response = await withRetry(async () => {
-        const res = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${perplexityKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'sonar',
-            messages: [
-              {
-                role: 'system',
-                content: '你是一个专业的宠物健康信息助手。提供准确、详细的信息并附上来源。'
-              },
-              {
-                role: 'user',
-                content: query
-              }
-            ],
-            temperature: 0.2,
-            max_tokens: 1500,
-          }),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Perplexity API error: ${res.status} - ${errorText}`);
-        }
-
-        return res;
+  try {
+    const response = await withRetry(async () => {
+      const res = await fetch('https://api.perplexity.ai/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: queries,
+          max_results: 10,
+          max_tokens_per_page: 1024
+        }),
       });
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      const citations = data.citations || [];
-
-      if (content) {
-        allResults.push(`查询: ${query}\n结果: ${content}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Perplexity API error: ${res.status} - ${errorText}`);
       }
 
-      citations.forEach((citation: string) => {
-        if (citation) allCitations.add(citation);
-      });
+      return res;
+    });
 
-      // Add delay between requests to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (error) {
-      console.error(`Search error for query "${query}":`, error);
-      // Continue with other queries even if one fails
-    }
+    const data = await response.json();
+    const searchResults = data.results || [];
+
+    searchResults.forEach((result: any) => {
+      allResults.push(result);
+      if (result.url) allCitations.add(result.url);
+    });
+
+  } catch (error) {
+    console.error('Search error:', error);
   }
 
   console.log(`Found ${allResults.length} results, ${allCitations.size} citations`);
+  
+  // Format results for Gemini synthesis
+  const formattedResults = allResults.map((r, i) => 
+    `[${i+1}] ${r.title}\nURL: ${r.url}\n内容: ${r.snippet}\n日期: ${r.date || 'N/A'}`
+  ).join('\n\n');
+
   return {
-    results: allResults,
+    results: [formattedResults],
     citations: Array.from(allCitations)
   };
 }
@@ -220,70 +207,59 @@ ${results.join('\n\n')}
   return response;
 }
 
-// Node 4: Perform additional research if needed
+// Node 4: Perform additional research using Search API
 async function additionalSearchNode(state: SearchState): Promise<Partial<SearchState>> {
   console.log('Node: Performing additional research...');
   const { additionalQueries, perplexityKey, results, citations } = state;
   const queries = additionalQueries || [];
   
-  const allResults: string[] = [];
+  const allResults: any[] = [];
   const allCitations: Set<string> = new Set(citations);
 
-  for (const query of queries.slice(0, 3)) {
-    try {
-      const response = await withRetry(async () => {
-        const res = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${perplexityKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'sonar',
-            messages: [
-              {
-                role: 'system',
-                content: '你是一个专业的宠物健康信息助手。提供准确、详细的信息并附上来源。'
-              },
-              {
-                role: 'user',
-                content: query
-              }
-            ],
-            temperature: 0.2,
-            max_tokens: 1500,
-          }),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Perplexity API error: ${res.status} - ${errorText}`);
-        }
-
-        return res;
+  try {
+    const response = await withRetry(async () => {
+      const res = await fetch('https://api.perplexity.ai/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: queries,
+          max_results: 8,
+          max_tokens_per_page: 1024
+        }),
       });
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      const newCitations = data.citations || [];
-
-      if (content) {
-        allResults.push(`查询: ${query}\n结果: ${content}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Perplexity API error: ${res.status} - ${errorText}`);
       }
 
-      newCitations.forEach((citation: string) => {
-        if (citation) allCitations.add(citation);
-      });
+      return res;
+    });
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (error) {
-      console.error(`Search error for query "${query}":`, error);
-    }
+    const data = await response.json();
+    const searchResults = data.results || [];
+
+    searchResults.forEach((result: any) => {
+      allResults.push(result);
+      if (result.url) allCitations.add(result.url);
+    });
+
+  } catch (error) {
+    console.error('Additional search error:', error);
   }
 
   console.log(`Additional search: ${allResults.length} new results`);
+  
+  // Format additional results
+  const formattedResults = allResults.map((r, i) => 
+    `[补充${i+1}] ${r.title}\nURL: ${r.url}\n内容: ${r.snippet}\n日期: ${r.date || 'N/A'}`
+  ).join('\n\n');
+
   return {
-    results: [...results, ...allResults],
+    results: [...results, formattedResults],
     citations: Array.from(allCitations)
   };
 }
