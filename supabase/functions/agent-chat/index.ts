@@ -239,33 +239,24 @@ serve(async (req) => {
             break;
 
           case 'web_research':
-            // Simple search using Perplexity Chat Completions
+            // Use Perplexity Search API + Gemini synthesis
             const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
             if (!PERPLEXITY_API_KEY) {
               result = { error: 'Perplexity API key not configured' };
               break;
             }
             
-            const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+            // Step 1: Perplexity Search
+            const perplexityResponse = await fetch('https://api.perplexity.ai/search', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'llama-3.1-sonar-small-128k-online',
-                messages: [
-                  {
-                    role: 'system',
-                    content: '你是一个专业的宠物健康信息助手。提供准确、实用的信息并附上来源。'
-                  },
-                  {
-                    role: 'user',
-                    content: toolArgs.query
-                  }
-                ],
-                temperature: 0.2,
-                max_tokens: 1500,
+                query: toolArgs.query,
+                max_results: 10,
+                max_tokens_per_page: 1024
               }),
             });
 
@@ -274,11 +265,48 @@ serve(async (req) => {
               console.error('Perplexity error:', perplexityResponse.status, errorText);
               result = { error: `搜索失败: ${perplexityResponse.status}` };
             } else {
-              const perplexityData = await perplexityResponse.json();
-              result = {
-                answer: perplexityData.choices?.[0]?.message?.content || '',
-                citations: perplexityData.citations || []
-              };
+              const searchData = await perplexityResponse.json();
+              const searchResults = searchData.results || [];
+              const citations = searchResults.map((r: any) => r.url).filter(Boolean);
+
+              // Step 2: Gemini synthesis
+              const formattedResults = searchResults.map((r: any, i: number) => 
+                `[${i+1}] ${r.title}\nURL: ${r.url}\n内容: ${r.snippet}`
+              ).join('\n\n');
+
+              const geminiResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    contents: [{
+                      parts: [{
+                        text: `基于以下搜索结果回答问题。
+
+问题: ${toolArgs.query}
+
+搜索结果:
+${formattedResults}
+
+请提供准确、实用的回答，使用中文，markdown格式。`
+                      }]
+                    }],
+                    generationConfig: {
+                      temperature: 0.3,
+                      maxOutputTokens: 1500
+                    }
+                  })
+                }
+              );
+
+              if (geminiResponse.ok) {
+                const geminiData = await geminiResponse.json();
+                const answer = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                result = { answer, citations };
+              } else {
+                result = { error: '生成回答失败' };
+              }
             }
             break;
 
