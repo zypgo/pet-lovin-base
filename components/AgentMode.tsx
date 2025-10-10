@@ -135,11 +135,16 @@ const AgentMode: React.FC = () => {
         setLoading(true);
         setError('');
 
+        // Save current values before clearing
+        const currentInput = input;
+        const currentFile = file;
+        const currentFilePreview = filePreview;
+
         // Render user message
         const userMessageContent = (
             <div>
                 {filePreview && <img src={filePreview} alt="attachment" className="max-w-xs rounded-lg mb-2" />}
-                <p>{input}</p>
+                <p>{currentInput}</p>
             </div>
         );
         setMessages(prev => [...prev, {
@@ -149,9 +154,6 @@ const AgentMode: React.FC = () => {
             textContent: currentInput
         }]);
 
-        const currentInput = input;
-        const currentFile = file;
-        const currentFilePreview = filePreview;
         setInput('');
         clearFile();
 
