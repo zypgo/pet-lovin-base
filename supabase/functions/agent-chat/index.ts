@@ -63,14 +63,11 @@ serve(async (req) => {
     const tools = [
       {
         name: "identify_pet",
-        description: "Identifies pet species and breed from an image. Use when user asks about pet identification or shares a pet photo.",
+        description: "Identifies pet species and breed from an image. Use when user asks about pet identification or shares a pet photo. The image will be automatically used from the user's upload.",
         parameters: {
           type: "object",
-          properties: {
-            imageBase64: { type: "string", description: "Base64 encoded image data" },
-            mimeType: { type: "string", description: "Image MIME type" }
-          },
-          required: ["imageBase64", "mimeType"]
+          properties: {},
+          required: []
         }
       },
       {
@@ -87,15 +84,13 @@ serve(async (req) => {
       },
       {
         name: "edit_pet_image",
-        description: "Edits or modifies a pet image based on instructions. Use when user wants to edit, enhance, or modify a pet photo.",
+        description: "Edits or modifies a pet image based on instructions. Use when user wants to edit, enhance, or modify a pet photo. The image will be automatically used from the user's upload.",
         parameters: {
           type: "object",
           properties: {
-            imageBase64: { type: "string", description: "Base64 encoded image data" },
-            mimeType: { type: "string", description: "Image MIME type" },
             prompt: { type: "string", description: "Edit instructions" }
           },
-          required: ["imageBase64", "mimeType", "prompt"]
+          required: ["prompt"]
         }
       },
       {
@@ -226,9 +221,13 @@ serve(async (req) => {
       try {
         switch (toolName) {
           case 'identify_pet':
+            if (!imageBase64 || !mimeType) {
+              result = { error: '请先上传宠物照片' };
+              break;
+            }
             result = await callEdgeFunction('pet-identify', {
-              imageBase64: toolArgs.imageBase64 || imageBase64,
-              mimeType: toolArgs.mimeType || mimeType
+              imageBase64: imageBase64,
+              mimeType: mimeType
             });
             break;
 
@@ -250,9 +249,13 @@ serve(async (req) => {
             break;
 
           case 'edit_pet_image':
+            if (!imageBase64 || !mimeType) {
+              result = { error: '请先上传要编辑的照片' };
+              break;
+            }
             result = await callEdgeFunction('image-edit', {
-              imageBase64: toolArgs.imageBase64 || imageBase64,
-              mimeType: toolArgs.mimeType || mimeType,
+              imageBase64: imageBase64,
+              mimeType: mimeType,
               prompt: toolArgs.prompt
             });
             break;
