@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { StateGraph, END } from "https://esm.sh/@langchain/langgraph@0.4.9";
+import { StateGraph, END } from "https://esm.sh/@langchain/langgraph@0.2.19?target=deno";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
