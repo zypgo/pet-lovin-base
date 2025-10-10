@@ -72,9 +72,17 @@ Please provide a comprehensive, caring response that combines this research with
           setTimeout(() => setError(''), 3000);
         }
       } else {
-        // Use standard Gemini response
+        // Use standard Perplexity search (not deep search)
         const response = await getPetHealthAdvice(question);
         setResult(response.advice);
+        
+        // Save citations from standard search
+        if (response.citations && response.citations.length > 0) {
+          setSearchResults({
+            answer_md: response.advice,
+            citations: response.citations
+          });
+        }
         
         // Save to database
         if (user) {
@@ -82,7 +90,7 @@ Please provide a comprehensive, caring response that combines this research with
             user_id: user.id,
             question,
             advice: response.advice,
-            citations: []
+            citations: response.citations || []
           });
         }
       }
@@ -241,8 +249,8 @@ Please provide a comprehensive, caring response that combines this research with
               />
             </div>
             
-            {/* Search Citations (when enhanced search is used) */}
-            {useDeepSearch && searchResults && searchResults.citations && searchResults.citations.length > 0 && (
+            {/* Search Citations (shown for both modes if available) */}
+            {searchResults && searchResults.citations && searchResults.citations.length > 0 && (
               <div className="mt-6 p-4 bg-purple-50 border-2 border-purple-200 rounded-xl">
                 <div className="flex items-start">
                   <span className="text-purple-600 mr-3 text-lg flex-shrink-0">📚</span>

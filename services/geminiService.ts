@@ -54,7 +54,7 @@ export async function identifyPet(file: File): Promise<PetIdentificationResult> 
   }
 }
 
-export async function getPetHealthAdvice(question: string): Promise<{ advice: string }> {
+export async function getPetHealthAdvice(question: string): Promise<{ advice: string; citations?: string[] }> {
   try {
     const { data, error } = await supabase.functions.invoke('health-advice', {
       body: { question }
