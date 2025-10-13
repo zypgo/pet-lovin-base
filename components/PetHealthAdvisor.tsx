@@ -356,7 +356,7 @@ Please provide a comprehensive, caring response that combines this research with
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-green-700 flex items-center">
                   <span className="mr-2">📋</span>
-                  咨询历史
+                  Consultation History
                 </h3>
               </div>
               
@@ -366,7 +366,7 @@ Please provide a comprehensive, caring response that combines this research with
                 </div>
               ) : consultations.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  <p className="text-sm">暂无咨询记录</p>
+                  <p className="text-sm">No consultation records</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">

@@ -94,7 +94,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
           user_id: user.id,
           image_url: publicUrl,
           storage_path: fileName,
-          title: uploadTitle || '我的宠物',
+          title: uploadTitle || 'My Pet',
           description: uploadDescription || ''
         });
 
@@ -110,7 +110,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
       setUploadDescription('');
     } catch (error) {
       console.error('Upload error:', error);
-      alert('上传失败，请重试');
+      alert('Upload failed, please try again');
     } finally {
       setUploading(false);
     }
@@ -135,7 +135,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
             🎨 Pet Community Gallery 🎨
           </h2>
           <p className="text-orange-600 max-w-2xl mx-auto leading-relaxed text-lg">
-            🌈 分享你的宠物美照，欣赏社区的可爱萌宠！🌈
+            🌈 Share your lovely pet photos and enjoy cute pets from our community! 🌈
           </p>
           
           {/* Upload Button */}
@@ -143,7 +143,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
             onClick={() => setShowUploadModal(true)}
             className="mt-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-8 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
-            📸 分享我的宠物照片
+            📸 Share My Pet Photos
           </button>
         </div>
 
@@ -151,21 +151,21 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-              <h3 className="text-2xl font-bold text-purple-700 mb-4">分享宠物照片</h3>
+              <h3 className="text-2xl font-bold text-purple-700 mb-4">Share Pet Photo</h3>
               
               <div className="space-y-4">
-                <ImageInput onFileSelect={setUploadFile} prompt="选择照片 📷" />
+                <ImageInput onFileSelect={setUploadFile} prompt="Choose a photo 📷" />
                 
                 <input
                   type="text"
-                  placeholder="标题（可选）"
+                  placeholder="Title (optional)"
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
                   className="w-full px-4 py-2 border-2 border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300"
                 />
                 
                 <textarea
-                  placeholder="描述（可选）"
+                  placeholder="Description (optional)"
                   value={uploadDescription}
                   onChange={(e) => setUploadDescription(e.target.value)}
                   rows={3}
@@ -178,14 +178,14 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
                     disabled={!uploadFile || uploading}
                     className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all"
                   >
-                    {uploading ? '上传中...' : '上传'}
+                    {uploading ? 'Uploading...' : 'Upload'}
                   </button>
                   <button
                     onClick={() => setShowUploadModal(false)}
                     disabled={uploading}
                     className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all"
                   >
-                    取消
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -195,7 +195,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
 
         {loading ? (
           <div className="text-center py-16">
-            <Spinner text="加载社区图片中..." />
+            <Spinner text="Loading community images..." />
           </div>
         ) : galleryImages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -210,7 +210,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
                     />
                     {/* User badge */}
                     <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-bold text-orange-600">
-                      👤 {usernames[img.user_id] || '用户'}
+                      👤 {usernames[img.user_id] || 'User'}
                     </div>
                     {/* Hover effect */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl flex items-end p-4">
@@ -228,7 +228,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
                     <p className="text-sm font-semibold text-orange-700 truncate">{img.title}</p>
                     <div className="flex items-center justify-between mt-2 text-xs text-orange-600">
                       <span>❤️ {img.likes_count}</span>
-                      <span>{new Date(img.created_at).toLocaleDateString('zh-CN')}</span>
+                      <span>{new Date(img.created_at).toLocaleDateString('en-US')}</span>
                     </div>
                   </div>
                 </div>
@@ -245,10 +245,10 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images }) => {
               </div>
               
               <h3 className="text-2xl font-bold text-orange-700 mb-4">
-                🌈 成为第一个分享的人！🌈
+                🌈 Be the first to share! 🌈
               </h3>
               <p className="text-orange-600 mb-6 max-w-md mx-auto leading-relaxed">
-                社区画廊等待你的第一张宠物照片！点击上方按钮开始分享吧
+                The community gallery is waiting for your first pet photo! Click the button above to start sharing
               </p>
             </div>
           </div>
