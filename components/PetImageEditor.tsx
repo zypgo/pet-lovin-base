@@ -28,9 +28,12 @@ const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery, sele
           const file = new File([blob], 'selected-image.jpg', { type: blob.type });
           setFile(file);
           setOriginalImage(selectedImage);
+          setResult(null); // Clear previous results
+          setError(''); // Clear previous errors
         })
         .catch(err => {
           console.error('Error loading selected image:', err);
+          setError('Failed to load selected image');
         });
     }
   }, [selectedImage]);

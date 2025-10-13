@@ -47,6 +47,14 @@ export default function HappyLifePage({ galleryImages, addImageToGallery }: Happ
     setActiveSubPage(HappyLifeSubPage.Editor);
   };
 
+  const handlePageChange = (page: HappyLifeSubPage) => {
+    setActiveSubPage(page);
+    // Clear selected image when leaving Editor
+    if (page !== HappyLifeSubPage.Editor) {
+      setSelectedImageForEdit(null);
+    }
+  };
+
   const renderSubPage = () => {
     switch (activeSubPage) {
       case HappyLifeSubPage.Editor:
@@ -76,19 +84,19 @@ export default function HappyLifePage({ galleryImages, addImageToGallery }: Happ
       <div className="flex justify-center gap-4 flex-wrap">
         <SubNavButton
           isActive={activeSubPage === HappyLifeSubPage.Editor}
-          onClick={() => setActiveSubPage(HappyLifeSubPage.Editor)}
+          onClick={() => handlePageChange(HappyLifeSubPage.Editor)}
           icon={<span className="text-xl">🎨</span>}
           label="Playground"
         />
         <SubNavButton
           isActive={activeSubPage === HappyLifeSubPage.StoryCreator}
-          onClick={() => setActiveSubPage(HappyLifeSubPage.StoryCreator)}
+          onClick={() => handlePageChange(HappyLifeSubPage.StoryCreator)}
           icon={<span className="text-xl">📖</span>}
           label="Stories"
         />
         <SubNavButton
           isActive={activeSubPage === HappyLifeSubPage.Gallery}
-          onClick={() => setActiveSubPage(HappyLifeSubPage.Gallery)}
+          onClick={() => handlePageChange(HappyLifeSubPage.Gallery)}
           icon={<span className="text-xl">🖼️</span>}
           label="Gallery"
         />
