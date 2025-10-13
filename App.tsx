@@ -15,7 +15,7 @@ const App: React.FC = () => {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const { user, signOut } = useAuth();
 
-  const addImageToGallery = useCallback((imageUrl: string) => {
+  const addImageToGallery = useCallback(async (imageUrl: string) => {
     // Add new images to the front of the gallery
     setGalleryImages(prev => [imageUrl, ...prev]);
   }, []);

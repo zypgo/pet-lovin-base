@@ -1,21 +1,85 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { editPetImage } from '../services/geminiService';
 import Spinner from './Spinner';
 import ImageInput from './ImageInput';
 import { EditedImageResult } from '../types';
+import { supabase } from '../src/integrations/supabase/client';
 
 interface PetImageEditorProps {
-  addImageToGallery: (imageUrl: string) => void;
+  addImageToGallery: (imageUrl: string) => Promise<void>;
+  selectedImage?: string | null;
 }
 
-const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery }) => {
+const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery, selectedImage }) => {
   const [file, setFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<EditedImageResult | null>(null);
   const [error, setError] = useState<string>('');
   const [originalImage, setOriginalImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedImage) {
+      // Convert URL to File object for editing
+      fetch(selectedImage)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], 'selected-image.jpg', { type: blob.type });
+          setFile(file);
+          setOriginalImage(selectedImage);
+        })
+        .catch(err => {
+          console.error('Error loading selected image:', err);
+        });
+    }
+  }, [selectedImage]);
+
+  const saveToGallery = async (imageBase64: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Convert base64 to blob
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+
+      // Upload to storage
+      const fileName = `${user.id}/${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('pet-images')
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('pet-images')
+        .getPublicUrl(fileName);
+
+      // Save to database as private (is_public = false)
+      const { error: dbError } = await supabase
+        .from('gallery_images')
+        .insert({
+          user_id: user.id,
+          image_url: publicUrl,
+          storage_path: fileName,
+          title: 'AI Generated',
+          description: prompt,
+          is_public: false
+        });
+
+      if (dbError) throw dbError;
+    } catch (error) {
+      console.error('Error saving to gallery:', error);
+    }
+  };
 
   const handleEdit = async () => {
     if (!file) {
@@ -38,7 +102,9 @@ const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery }) =>
             const response = await editPetImage(file, prompt);
             setResult(response);
             if (response.imageBase64) {
-              addImageToGallery(`data:image/png;base64,${response.imageBase64}`);
+              const imageData = `data:image/png;base64,${response.imageBase64}`;
+              await saveToGallery(imageData);
+              await addImageToGallery(imageData);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred.');
