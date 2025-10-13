@@ -7,11 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Initialize Supabase client
-function getSupabaseClient(authToken?: string) {
+// Initialize Supabase client with service role
+function getSupabaseAdmin() {
   return createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
-    authToken ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     {
       auth: {
         persistSession: false,
@@ -19,6 +19,27 @@ function getSupabaseClient(authToken?: string) {
       },
     }
   );
+}
+
+// Verify user JWT token
+async function verifyUser(token: string) {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
+  );
+  
+  return await supabase.auth.getUser(token);
 }
 
 // Generate text embedding using Gemini
@@ -75,7 +96,7 @@ serve(async (req) => {
   }
 
   try {
-    // Get authorization header
+    // Get authorization token
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return new Response(
@@ -84,12 +105,10 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase client with service role for database operations
-    const supabaseAdmin = getSupabaseClient();
+    const token = authHeader.replace('Bearer ', '');
     
-    // Create Supabase client with user token for auth verification
-    const supabaseUser = getSupabaseClient(authHeader.replace('Bearer ', ''));
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    // Verify user token
+    const { data: { user }, error: userError } = await verifyUser(token);
     
     if (userError || !user) {
       console.error('Auth error:', userError);
@@ -98,6 +117,11 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('User authenticated:', user.id);
+
+    // Get Supabase admin client for database operations
+    const supabase = getSupabaseAdmin();
 
     const { 
       message, 
@@ -195,7 +219,7 @@ serve(async (req) => {
       try {
         const queryEmbedding = await generateEmbedding(message);
         if (queryEmbedding.length > 0) {
-          const { data: similarMessages, error: searchError } = await supabaseAdmin
+          const { data: similarMessages, error: searchError } = await supabase
             .rpc('search_similar_messages', {
               query_embedding: queryEmbedding,
               user_id_param: user.id,
@@ -530,7 +554,7 @@ ${formattedResults}
       
       // Create new conversation if needed
       if (!activeConversationId) {
-        const { data: newConv, error: convError } = await supabaseAdmin
+        const { data: newConv, error: convError } = await supabase
           .from('agent_conversations')
           .insert({
             user_id: user.id,
@@ -550,7 +574,7 @@ ${formattedResults}
         
         // Save user message
         if (message) {
-          await supabaseAdmin.from('agent_messages').insert({
+          await supabase.from('agent_messages').insert({
             conversation_id: activeConversationId,
             user_id: user.id,
             role: 'user',
@@ -563,7 +587,7 @@ ${formattedResults}
         const assistantEmbedding = finalResponse ? await generateEmbedding(finalResponse) : null;
         
         // Save assistant message
-        await supabaseAdmin.from('agent_messages').insert({
+        await supabase.from('agent_messages').insert({
           conversation_id: activeConversationId,
           user_id: user.id,
           role: 'assistant',
