@@ -229,6 +229,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_memories: {
+        Row: {
+          created_at: string
+          embedding: string | null
+          id: string
+          memory_content: string
+          memory_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          memory_content: string
+          memory_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          memory_content?: string
+          memory_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -289,6 +319,21 @@ export type Database = {
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
+      }
+      search_similar_memories: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+          user_id_param: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          memory_content: string
+          memory_type: string
+          similarity: number
+        }[]
       }
       search_similar_messages: {
         Args: {

@@ -101,6 +101,31 @@ const AgentMode: React.FC = () => {
         }
     };
 
+    const deleteConversation = async (convId: string) => {
+        if (!confirm('确定要删除这个对话吗？')) return;
+        
+        // Delete messages first
+        await supabase
+            .from('agent_messages')
+            .delete()
+            .eq('conversation_id', convId);
+        
+        // Delete conversation
+        const { error } = await supabase
+            .from('agent_conversations')
+            .delete()
+            .eq('id', convId);
+
+        if (!error) {
+            // If deleted current conversation, start new one
+            if (currentConversationId === convId) {
+                startNewConversation();
+            }
+            // Reload conversation list
+            loadConversations();
+        }
+    };
+
     const loadConversation = async (convId: string) => {
         const { data, error } = await supabase
             .from('agent_messages')
@@ -417,27 +442,41 @@ const AgentMode: React.FC = () => {
                         <p className="text-sm text-gray-400 text-center py-4">暂无历史对话</p>
                     ) : (
                         conversations.map((conv) => (
-                            <button
+                            <div
                                 key={conv.id}
-                                onClick={() => loadConversation(conv.id)}
-                                className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                                className={`group relative p-3 rounded-lg transition-all duration-200 ${
                                     currentConversationId === conv.id 
                                         ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300'
                                         : 'bg-white hover:bg-pink-50 border border-gray-200'
                                 }`}
                             >
-                                <div className="flex items-start gap-2">
-                                    <span className="text-sm">💬</span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-gray-700 truncate">
-                                            {conv.title || '未命名对话'}
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            {new Date(conv.updated_at).toLocaleDateString('zh-CN')}
-                                        </p>
+                                <button
+                                    onClick={() => loadConversation(conv.id)}
+                                    className="w-full text-left"
+                                >
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-sm">💬</span>
+                                        <div className="flex-1 min-w-0 pr-6">
+                                            <p className="text-sm font-medium text-gray-700 truncate">
+                                                {conv.title || '未命名对话'}
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                {new Date(conv.updated_at).toLocaleDateString('zh-CN')}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            </button>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteConversation(conv.id);
+                                    }}
+                                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-lg"
+                                    title="删除对话"
+                                >
+                                    <span className="text-red-500 text-sm">🗑️</span>
+                                </button>
+                            </div>
                         ))
                     )}
                 </div>

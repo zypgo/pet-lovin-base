@@ -156,6 +156,18 @@ serve(async (req) => {
     // Define available tools
     const tools = [
       {
+        name: "save_memory",
+        description: "Saves important information to long-term memory. Use when user explicitly asks to remember something (e.g., '请记住', 'remember that', etc.) or shares important pet information like name, birthday, preferences.",
+        parameters: {
+          type: "object",
+          properties: {
+            content: { type: "string", description: "The information to remember" },
+            memory_type: { type: "string", description: "Type of memory: pet_info, preference, health_record, or general", enum: ["pet_info", "preference", "health_record", "general"] }
+          },
+          required: ["content"]
+        }
+      },
+      {
         name: "identify_pet",
         description: "Identifies pet species and breed from an image. Use when user asks about pet identification or shares a pet photo. The image will be automatically used from the user's upload.",
         parameters: {
@@ -211,25 +223,26 @@ serve(async (req) => {
       }
     ];
 
-    // Step 1: Retrieve relevant memories using vector similarity
+    // Step 1: Retrieve relevant memories using RAG
     let memoryContext = '';
     if (message) {
       try {
         const queryEmbedding = await generateEmbedding(message);
         if (queryEmbedding.length > 0) {
-          const { data: similarMessages, error: searchError } = await supabase
-            .rpc('search_similar_messages', {
+          // Search user_memories (explicit memories)
+          const { data: savedMemories, error: memoryError } = await supabase
+            .rpc('search_similar_memories', {
               query_embedding: queryEmbedding,
               user_id_param: user.id,
-              match_threshold: 0.7,
-              match_count: 3
+              match_threshold: 0.5,
+              match_count: 5
             });
 
-          if (!searchError && similarMessages && similarMessages.length > 0) {
-            console.log(`Found ${similarMessages.length} relevant memories`);
-            memoryContext = '\n\n[相关历史记忆]\n' + 
-              similarMessages.map((msg: any) => 
-                `- ${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content.substring(0, 200)}...`
+          if (!memoryError && savedMemories && savedMemories.length > 0) {
+            console.log(`Found ${savedMemories.length} saved memories`);
+            memoryContext += '\n\n[用户保存的记忆]\n' + 
+              savedMemories.map((mem: any) => 
+                `- [${mem.memory_type}] ${mem.memory_content}`
               ).join('\n');
           }
         }
@@ -343,6 +356,29 @@ serve(async (req) => {
 
       try {
         switch (toolName) {
+          case 'save_memory':
+            // Save explicit memory with embedding
+            const memoryContent = toolArgs.content;
+            const memoryType = toolArgs.memory_type || 'general';
+            const memoryEmbedding = await generateEmbedding(memoryContent);
+            
+            const { error: insertError } = await supabase
+              .from('user_memories')
+              .insert({
+                user_id: user.id,
+                memory_content: memoryContent,
+                memory_type: memoryType,
+                embedding: memoryEmbedding
+              });
+
+            if (insertError) {
+              console.error('Memory save error:', insertError);
+              result = { error: '保存记忆失败' };
+            } else {
+              result = { success: true, message: `已记住: ${memoryContent}` };
+            }
+            break;
+
           case 'identify_pet':
             if (!imageBase64 || !mimeType) {
               result = { error: '请先上传宠物照片' };
@@ -564,6 +600,12 @@ ${formattedResults}
         if (!convError && newConv) {
           activeConversationId = newConv.id;
         }
+      } else {
+        // Update existing conversation's timestamp
+        await supabase
+          .from('agent_conversations')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', activeConversationId);
       }
 
       if (activeConversationId) {
