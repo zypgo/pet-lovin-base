@@ -21,25 +21,23 @@ function getSupabaseAdmin() {
   );
 }
 
-// Verify user JWT token
+// Verify user JWT token using REST API
 async function verifyUser(token: string) {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '',
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    }
-  );
-  
-  return await supabase.auth.getUser(token);
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    return { data: { user: null }, error: new Error(error) };
+  }
+
+  const user = await response.json();
+  return { data: { user }, error: null };
 }
 
 // Generate text embedding using Gemini
