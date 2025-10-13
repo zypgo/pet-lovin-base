@@ -11,11 +11,19 @@ const CameraIcon = () => (
 interface ImageInputProps {
   onFileSelect: (file: File) => void;
   prompt: string;
+  externalPreview?: string | null;
 }
 
-const ImageInput: React.FC<ImageInputProps> = ({ onFileSelect, prompt }) => {
+const ImageInput: React.FC<ImageInputProps> = ({ onFileSelect, prompt, externalPreview }) => {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update preview when externalPreview changes
+  React.useEffect(() => {
+    if (externalPreview) {
+      setPreview(externalPreview);
+    }
+  }, [externalPreview]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

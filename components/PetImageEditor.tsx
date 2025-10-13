@@ -150,7 +150,11 @@ const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery, sele
 
         {/* Upload Section */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-xl border-2 border-orange-200">
-          <ImageInput onFileSelect={setFile} prompt="📸 Drop your pet's photo here for magical transformation!" />
+          <ImageInput 
+            onFileSelect={setFile} 
+            prompt="📸 Drop your pet's photo here for magical transformation!" 
+            externalPreview={originalImage}
+          />
       
           {/* Creative Instruction Section */}
           <div className="mt-8">
