@@ -75,13 +75,24 @@ serve(async (req) => {
   }
 
   try {
+    // Get authorization header
     const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    const supabase = getSupabaseClient(token);
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase client with service role for database operations
+    const supabaseAdmin = getSupabaseClient();
     
-    // Get user from token
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Create Supabase client with user token for auth verification
+    const supabaseUser = getSupabaseClient(authHeader.replace('Bearer ', ''));
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -184,7 +195,7 @@ serve(async (req) => {
       try {
         const queryEmbedding = await generateEmbedding(message);
         if (queryEmbedding.length > 0) {
-          const { data: similarMessages, error: searchError } = await supabase
+          const { data: similarMessages, error: searchError } = await supabaseAdmin
             .rpc('search_similar_messages', {
               query_embedding: queryEmbedding,
               user_id_param: user.id,
@@ -519,7 +530,7 @@ ${formattedResults}
       
       // Create new conversation if needed
       if (!activeConversationId) {
-        const { data: newConv, error: convError } = await supabase
+        const { data: newConv, error: convError } = await supabaseAdmin
           .from('agent_conversations')
           .insert({
             user_id: user.id,
@@ -539,7 +550,7 @@ ${formattedResults}
         
         // Save user message
         if (message) {
-          await supabase.from('agent_messages').insert({
+          await supabaseAdmin.from('agent_messages').insert({
             conversation_id: activeConversationId,
             user_id: user.id,
             role: 'user',
@@ -552,7 +563,7 @@ ${formattedResults}
         const assistantEmbedding = finalResponse ? await generateEmbedding(finalResponse) : null;
         
         // Save assistant message
-        await supabase.from('agent_messages').insert({
+        await supabaseAdmin.from('agent_messages').insert({
           conversation_id: activeConversationId,
           user_id: user.id,
           role: 'assistant',
