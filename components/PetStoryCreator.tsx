@@ -22,7 +22,7 @@ if (recognition) {
 }
 
 interface PetStoryCreatorProps {
-  addImageToGallery: (imageUrl: string) => void;
+  addImageToGallery: (imageUrl: string) => Promise<void>;
 }
 
 const PetStoryCreator: React.FC<PetStoryCreatorProps> = ({ addImageToGallery }) => {
@@ -76,7 +76,7 @@ const PetStoryCreator: React.FC<PetStoryCreatorProps> = ({ addImageToGallery }) 
     try {
       const response = await createPetStoryPost(story);
       setResult(response);
-      addImageToGallery(response.imageUrl);
+      await addImageToGallery(response.imageUrl);
       
       // Save to database
       if (user) {
