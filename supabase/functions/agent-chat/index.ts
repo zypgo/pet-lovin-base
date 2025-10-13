@@ -245,6 +245,23 @@ serve(async (req) => {
                 `- [${mem.memory_type}] ${mem.memory_content}`
               ).join('\n');
           }
+
+          // Search agent_messages (implicit conversation history)
+          const { data: similarMessages, error: msgError } = await supabase
+            .rpc('search_similar_messages', {
+              query_embedding: queryEmbedding,
+              user_id_param: user.id,
+              match_threshold: 0.6,
+              match_count: 3
+            });
+
+          if (!msgError && similarMessages && similarMessages.length > 0) {
+            console.log(`Found ${similarMessages.length} similar historical messages`);
+            memoryContext += '\n\n[相关历史对话]\n' + 
+              similarMessages.map((msg: any) => 
+                `- ${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content.substring(0, 200)}...`
+              ).join('\n');
+          }
         }
       } catch (embedError) {
         console.error('Memory retrieval error:', embedError);

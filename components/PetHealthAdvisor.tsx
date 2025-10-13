@@ -9,6 +9,14 @@ import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from '../src/contexts/AuthContext';
 marked.setOptions({ gfm: true });
 
+interface HealthConsultation {
+  id: string;
+  question: string;
+  advice: string;
+  citations: any;
+  created_at: string;
+}
+
 const PetHealthAdvisor: React.FC = () => {
   const [question, setQuestion] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -17,6 +25,55 @@ const PetHealthAdvisor: React.FC = () => {
   const [useDeepSearch, setUseDeepSearch] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const { user } = useAuth();
+  const [consultations, setConsultations] = useState<HealthConsultation[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+
+  // Load consultation history
+  const loadConsultations = async () => {
+    if (!user) return;
+    
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('health_consultations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      setConsultations(data || []);
+    } catch (err) {
+      console.error('Failed to load consultations:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Delete a consultation
+  const deleteConsultation = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('health_consultations')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Remove from local state
+      setConsultations(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Failed to delete consultation:', err);
+      setError('Failed to delete consultation');
+    }
+  };
+
+  // Load consultations on mount and when user changes
+  React.useEffect(() => {
+    if (user) {
+      loadConsultations();
+    }
+  }, [user]);
 
   const handleGetAdvice = async () => {
     if (!question) {
@@ -66,6 +123,7 @@ Please provide a comprehensive, caring response that combines this research with
               advice: response.advice,
               citations: []
             });
+            loadConsultations(); // Reload history
           }
           
           // Clear error after a delay to show it was resolved
@@ -92,6 +150,7 @@ Please provide a comprehensive, caring response that combines this research with
             advice: response.advice,
             citations: response.citations || []
           });
+          loadConsultations(); // Reload history
         }
       }
     } catch (err) {
@@ -103,7 +162,10 @@ Please provide a comprehensive, caring response that combines this research with
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-6 rounded-3xl" style={{ fontFamily: "'Averia Serif Libre', serif" }}>
-      <div className="max-w-3xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-8">
         {/* Header Section */}
         <div className="text-center">
           <div className="flex items-center justify-center mb-4">
@@ -286,6 +348,70 @@ Please provide a comprehensive, caring response that combines this research with
             </div>
           </div>
         )}
+          </div>
+
+          {/* History Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-2 border-green-200 sticky top-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-green-700 flex items-center">
+                  <span className="mr-2">📋</span>
+                  咨询历史
+                </h3>
+              </div>
+              
+              {loadingHistory ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
+                </div>
+              ) : consultations.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">暂无咨询记录</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {consultations.map((consultation) => (
+                    <div
+                      key={consultation.id}
+                      className="group bg-white/60 p-4 rounded-xl border border-green-200 hover:border-green-400 transition-all hover:shadow-md"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="text-sm font-semibold text-green-700 line-clamp-2 flex-1">
+                          {consultation.question}
+                        </p>
+                        <button
+                          onClick={() => deleteConsultation(consultation.id)}
+                          className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
+                          title="删除"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                        {consultation.advice.substring(0, 100)}...
+                      </p>
+                      <p className="text-xs text-teal-600">
+                        {new Date(consultation.created_at).toLocaleDateString('zh-CN', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      {consultation.citations && Array.isArray(consultation.citations) && consultation.citations.length > 0 && (
+                        <div className="mt-2 flex items-center text-xs text-purple-600">
+                          <span className="mr-1">📚</span>
+                          {consultation.citations.length} 参考资料
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
