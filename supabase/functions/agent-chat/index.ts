@@ -1,10 +1,51 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Initialize Supabase client
+function getSupabaseClient(authToken?: string) {
+  return createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    authToken ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+}
+
+// Generate text embedding using Gemini
+async function generateEmbedding(text: string): Promise<number[]> {
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  const response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY!,
+      },
+      body: JSON.stringify({
+        content: { parts: [{ text }] },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error('Embedding generation failed:', await response.text());
+    return [];
+  }
+
+  const data = await response.json();
+  return data.embedding?.values || [];
+}
 
 // Helper function to call other edge functions
 async function callEdgeFunction(functionName: string, payload: any) {
@@ -34,7 +75,27 @@ serve(async (req) => {
   }
 
   try {
-    const { message, imageBase64, mimeType, deepSearch, conversationHistory = [] } = await req.json();
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    const supabase = getSupabaseClient(token);
+    
+    // Get user from token
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { 
+      message, 
+      imageBase64, 
+      mimeType, 
+      deepSearch, 
+      conversationHistory = [],
+      conversationId
+    } = await req.json();
     
     if (!message && !imageBase64) {
       return new Response(
@@ -117,15 +178,44 @@ serve(async (req) => {
       }
     ];
 
-    // Step 1: Let Gemini decide which tool to use
-    const systemPrompt = `你是Pet Home AI助手。你可以帮助用户：
+    // Step 1: Retrieve relevant memories using vector similarity
+    let memoryContext = '';
+    if (message) {
+      try {
+        const queryEmbedding = await generateEmbedding(message);
+        if (queryEmbedding.length > 0) {
+          const { data: similarMessages, error: searchError } = await supabase
+            .rpc('search_similar_messages', {
+              query_embedding: queryEmbedding,
+              user_id_param: user.id,
+              match_threshold: 0.7,
+              match_count: 3
+            });
+
+          if (!searchError && similarMessages && similarMessages.length > 0) {
+            console.log(`Found ${similarMessages.length} relevant memories`);
+            memoryContext = '\n\n[相关历史记忆]\n' + 
+              similarMessages.map((msg: any) => 
+                `- ${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content.substring(0, 200)}...`
+              ).join('\n');
+          }
+        }
+      } catch (embedError) {
+        console.error('Memory retrieval error:', embedError);
+        // Continue without memories
+      }
+    }
+
+    // Step 2: Let Gemini decide which tool to use
+    const systemPrompt = `你是Pet Home AI助手，拥有长期记忆能力。你可以帮助用户：
 - 识别宠物品种（当用户分享图片时）
 - 提供宠物健康建议（普通或深度研究）
 - 编辑宠物照片
 - 创建宠物故事/社交媒体内容
 - 进行网络研究回答宠物相关问题
 
-分析用户的请求并选择最合适的工具。如果用户上传了图片，优先考虑图片相关的工具。`;
+你可以记住之前的对话，并在回答时参考相关的历史记忆。
+分析用户的请求并选择最合适的工具。如果用户上传了图片，优先考虑图片相关的工具。${memoryContext}`;
 
     const userContent = message || "请分析这张宠物图片";
 
@@ -423,11 +513,65 @@ ${formattedResults}
       finalResponse = candidate?.content?.parts?.find(p => p.text)?.text || '';
     }
 
+    // Step 4: Save conversation to memory
+    try {
+      let activeConversationId = conversationId;
+      
+      // Create new conversation if needed
+      if (!activeConversationId) {
+        const { data: newConv, error: convError } = await supabase
+          .from('agent_conversations')
+          .insert({
+            user_id: user.id,
+            title: message?.substring(0, 100) || '新对话'
+          })
+          .select()
+          .single();
+          
+        if (!convError && newConv) {
+          activeConversationId = newConv.id;
+        }
+      }
+
+      if (activeConversationId) {
+        // Generate embedding for user message
+        const userEmbedding = message ? await generateEmbedding(message) : null;
+        
+        // Save user message
+        if (message) {
+          await supabase.from('agent_messages').insert({
+            conversation_id: activeConversationId,
+            user_id: user.id,
+            role: 'user',
+            content: message,
+            embedding: userEmbedding
+          });
+        }
+
+        // Generate embedding for assistant response
+        const assistantEmbedding = finalResponse ? await generateEmbedding(finalResponse) : null;
+        
+        // Save assistant message
+        await supabase.from('agent_messages').insert({
+          conversation_id: activeConversationId,
+          user_id: user.id,
+          role: 'assistant',
+          content: finalResponse,
+          tool_calls: toolCalls.length > 0 ? toolCalls : null,
+          embedding: assistantEmbedding
+        });
+      }
+    } catch (memoryError) {
+      console.error('Failed to save to memory:', memoryError);
+      // Continue without saving
+    }
+
     return new Response(
       JSON.stringify({ 
         response: finalResponse,
         result: result,
-        toolCalls: toolCalls
+        toolCalls: toolCalls,
+        conversationId: conversationId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

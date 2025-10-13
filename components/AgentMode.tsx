@@ -6,6 +6,9 @@ import { SocialPost, EditedImageResult } from '../types';
 import PetInfoDisplay from './PetInfoDisplay';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { supabase } from '../src/integrations/supabase/client';
+import { useAuth } from '../src/contexts/AuthContext';
+
 marked.setOptions({ gfm: true });
 
 // --- Result Display Components ---
@@ -55,7 +58,15 @@ interface Message {
     toolCalls?: Array<{ name: string; args: any }>;
 }
 
+interface Conversation {
+    id: string;
+    title: string;
+    created_at: string;
+    updated_at: string;
+}
+
 const AgentMode: React.FC = () => {
+    const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState<string>('');
     const [file, setFile] = useState<File | null>(null);
@@ -63,8 +74,66 @@ const AgentMode: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
     const [useDeepSearch, setUseDeepSearch] = useState<boolean>(false);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Load conversations on mount
+    useEffect(() => {
+        if (user) {
+            loadConversations();
+        }
+    }, [user]);
+
+    const loadConversations = async () => {
+        if (!user) return;
+        
+        const { data, error } = await supabase
+            .from('agent_conversations')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
+            .limit(20);
+
+        if (!error && data) {
+            setConversations(data);
+        }
+    };
+
+    const loadConversation = async (convId: string) => {
+        const { data, error } = await supabase
+            .from('agent_messages')
+            .select('*')
+            .eq('conversation_id', convId)
+            .order('created_at', { ascending: true });
+
+        if (!error && data) {
+            const loadedMessages: Message[] = data.map((msg: any) => ({
+                id: msg.id,
+                role: msg.role === 'user' ? 'user' : 'model',
+                content: msg.content,
+                textContent: msg.content,
+                toolCalls: msg.tool_calls
+            }));
+            setMessages(loadedMessages);
+            setCurrentConversationId(convId);
+        }
+    };
+
+    const startNewConversation = () => {
+        setMessages([{
+            id: 'init',
+            role: 'model',
+            content: 'Hello! I\'m your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?',
+            textContent: 'Hello! I\'m your Pet Home AI assistant. I can identify pets, give health advice, edit pet photos, and create stories. How can I help?'
+        }]);
+        setCurrentConversationId(null);
+        setInput('');
+        setFile(null);
+        setFilePreview(null);
+        setError('');
+    };
 
     const clearConversation = () => {
         setMessages([{
@@ -158,8 +227,12 @@ const AgentMode: React.FC = () => {
         clearFile();
 
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                throw new Error('请先登录');
+            }
+
             const SUPABASE_URL = 'https://betukaetgtzkfhxhwqma.supabase.co';
-            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJldHVrYWV0Z3R6a2ZoeGh3cW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMjcyMDcsImV4cCI6MjA3NDkwMzIwN30.npgKZO6tsj84kCMnCPCul-Gg3nXB_dZXEY8dSzeWFUU';
             
             // Build conversation history (exclude welcome message and current input)
             const conversationHistory = messages
@@ -172,7 +245,8 @@ const AgentMode: React.FC = () => {
             const payload: any = {
                 message: currentInput,
                 deepSearch: useDeepSearch,
-                conversationHistory: conversationHistory
+                conversationHistory: conversationHistory,
+                conversationId: currentConversationId
             };
             if (currentFile) {
                 payload.imageBase64 = await fileToBase64(currentFile);
@@ -186,7 +260,7 @@ const AgentMode: React.FC = () => {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                    'Authorization': `Bearer ${session.access_token}`
                 },
                 body: JSON.stringify(payload),
             });
@@ -272,6 +346,13 @@ const AgentMode: React.FC = () => {
 
             // Get response text for history
             const responseText = data?.response || data?.messages?.[0]?.content || '';
+            
+            // Update conversation ID if returned
+            if (data?.conversationId && !currentConversationId) {
+                setCurrentConversationId(data.conversationId);
+                // Refresh conversation list
+                loadConversations();
+            }
 
             if (resultDisplay) {
                 setMessages(prev => [...prev, {
@@ -313,31 +394,81 @@ const AgentMode: React.FC = () => {
 
 
     return (
-        <div className="min-h-[70vh] bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 rounded-3xl p-6 shadow-2xl border-2 border-pink-200/30" style={{ fontFamily: "'Averia Serif Libre', serif" }}>
-            <div className="text-center mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex-1"></div>
-                    <div className="flex items-center justify-center">
-                        <div className="relative">
-                            <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
-                                <span className="text-2xl">🤖</span>
-                            </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white flex items-center justify-center">
-                                <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+        <div className="flex gap-4">
+            {/* Conversations Sidebar */}
+            <div className="w-64 bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border-2 border-pink-100">
+                <div className="mb-4">
+                    <button
+                        onClick={startNewConversation}
+                        className="w-full bg-gradient-to-br from-purple-400 to-pink-500 text-white font-bold py-2 px-4 rounded-xl hover:from-purple-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-md flex items-center justify-center gap-2"
+                    >
+                        <span className="text-xl">➕</span>
+                        <span>新对话</span>
+                    </button>
+                </div>
+                
+                <h3 className="text-sm font-semibold text-purple-600 mb-3 flex items-center gap-2">
+                    <span className="text-lg">💬</span>
+                    对话历史
+                </h3>
+                
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {conversations.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">暂无历史对话</p>
+                    ) : (
+                        conversations.map((conv) => (
+                            <button
+                                key={conv.id}
+                                onClick={() => loadConversation(conv.id)}
+                                className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                                    currentConversationId === conv.id 
+                                        ? 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-300'
+                                        : 'bg-white hover:bg-pink-50 border border-gray-200'
+                                }`}
+                            >
+                                <div className="flex items-start gap-2">
+                                    <span className="text-sm">💬</span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-700 truncate">
+                                            {conv.title || '未命名对话'}
+                                        </p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            {new Date(conv.updated_at).toLocaleDateString('zh-CN')}
+                                        </p>
+                                    </div>
+                                </div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* Main Chat Area */}
+            <div className="flex-1 min-h-[70vh] bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 rounded-3xl p-6 shadow-2xl border-2 border-pink-200/30" style={{ fontFamily: "'Averia Serif Libre', serif" }}>
+                <div className="text-center mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex-1"></div>
+                        <div className="flex items-center justify-center">
+                            <div className="relative">
+                                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
+                                    <span className="text-2xl">🤖</span>
+                                </div>
+                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                                </div>
                             </div>
                         </div>
+                        <div className="flex-1 flex justify-end">
+                            {messages.length > 1 && (
+                                <button
+                                    onClick={startNewConversation}
+                                    className="bg-gradient-to-br from-red-400 to-pink-500 text-white font-bold py-2 px-4 rounded-2xl hover:from-red-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-white/30 flex items-center gap-2"
+                                >
+                                    🗑️ <span className="hidden sm:inline">新对话</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex-1 flex justify-end">
-                        {messages.length > 1 && (
-                            <button
-                                onClick={clearConversation}
-                                className="bg-gradient-to-br from-red-400 to-pink-500 text-white font-bold py-2 px-4 rounded-2xl hover:from-red-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-white/30 flex items-center gap-2"
-                            >
-                                🗑️ <span className="hidden sm:inline">清除对话</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
                     🐾 AI Pet Assistant 🐾
                 </h2>
@@ -454,6 +585,7 @@ const AgentMode: React.FC = () => {
                         ))}
                     </div>
                 )}
+            </div>
             </div>
         </div>
     );
