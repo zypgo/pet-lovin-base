@@ -33,7 +33,7 @@ const Header: React.FC = () => {
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent tracking-tight" 
                 style={{ fontFamily: "'Averia Serif Libre', serif" }}>
-              🐾 Pet Home 🏠
+              🐾 Home of Your Pets 🏠
             </h1>
             <div className="relative ml-4">
               <PawPrintIcon className="w-10 h-10 text-pink-600 transform -rotate-12" />

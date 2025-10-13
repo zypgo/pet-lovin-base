@@ -43,14 +43,14 @@ const App: React.FC = () => {
           {/* User Info Bar */}
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 flex justify-between items-center">
             <div className="text-white">
-              <span className="text-sm">👋 欢迎回来,</span>
+              <span className="text-sm">👋 Welcome back,</span>
               <span className="font-bold ml-2">{user?.user_metadata?.username || user?.email}</span>
             </div>
             <button
               onClick={signOut}
               className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm transition-colors"
             >
-              退出登录
+              Sign Out
             </button>
           </div>
           

@@ -102,7 +102,7 @@ const AgentMode: React.FC = () => {
     };
 
     const deleteConversation = async (convId: string) => {
-        if (!confirm('确定要删除这个对话吗？')) return;
+        if (!confirm('Are you sure you want to delete this conversation?')) return;
         
         // Delete messages first
         await supabase
@@ -428,18 +428,18 @@ const AgentMode: React.FC = () => {
                         className="w-full bg-gradient-to-br from-purple-400 to-pink-500 text-white font-bold py-2 px-4 rounded-xl hover:from-purple-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-md flex items-center justify-center gap-2"
                     >
                         <span className="text-xl">➕</span>
-                        <span>新对话</span>
+                        <span>New Chat</span>
                     </button>
                 </div>
                 
                 <h3 className="text-sm font-semibold text-purple-600 mb-3 flex items-center gap-2">
                     <span className="text-lg">💬</span>
-                    对话历史
+                    Chat History
                 </h3>
                 
                 <div className="space-y-2 max-h-[500px] overflow-y-auto">
                     {conversations.length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-4">暂无历史对话</p>
+                        <p className="text-sm text-gray-400 text-center py-4">No chat history</p>
                     ) : (
                         conversations.map((conv) => (
                             <div
@@ -458,10 +458,10 @@ const AgentMode: React.FC = () => {
                                         <span className="text-sm">💬</span>
                                         <div className="flex-1 min-w-0 pr-6">
                                             <p className="text-sm font-medium text-gray-700 truncate">
-                                                {conv.title || '未命名对话'}
+                                                {conv.title || 'Untitled Conversation'}
                                             </p>
                                             <p className="text-xs text-gray-400 mt-1">
-                                                {new Date(conv.updated_at).toLocaleDateString('zh-CN')}
+                                                {new Date(conv.updated_at).toLocaleDateString('en-US')}
                                             </p>
                                         </div>
                                     </div>
@@ -472,7 +472,7 @@ const AgentMode: React.FC = () => {
                                         deleteConversation(conv.id);
                                     }}
                                     className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-lg"
-                                    title="删除对话"
+                                    title="Delete conversation"
                                 >
                                     <span className="text-red-500 text-sm">🗑️</span>
                                 </button>
@@ -503,7 +503,7 @@ const AgentMode: React.FC = () => {
                                     onClick={startNewConversation}
                                     className="bg-gradient-to-br from-red-400 to-pink-500 text-white font-bold py-2 px-4 rounded-2xl hover:from-red-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-white/30 flex items-center gap-2"
                                 >
-                                    🗑️ <span className="hidden sm:inline">新对话</span>
+                                    🗑️ <span className="hidden sm:inline">New Chat</span>
                                 </button>
                             )}
                         </div>

@@ -3,14 +3,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
-  email: z.string().trim().email({ message: "请输入有效的邮箱地址" }),
-  password: z.string().min(6, { message: "密码至少需要6个字符" }),
-  username: z.string().trim().min(2, { message: "用户名至少需要2个字符" }).max(20, { message: "用户名最多20个字符" })
+  email: z.string().trim().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  username: z.string().trim().min(2, { message: "Username must be at least 2 characters" }).max(20, { message: "Username must be at most 20 characters" })
 });
 
 const signInSchema = z.object({
-  email: z.string().trim().email({ message: "请输入有效的邮箱地址" }),
-  password: z.string().min(1, { message: "请输入密码" })
+  email: z.string().trim().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(1, { message: "Please enter your password" })
 });
 
 const AuthPage: React.FC = () => {
@@ -52,9 +52,9 @@ const AuthPage: React.FC = () => {
         }
         const { error } = await signUp(email, password, username);
         if (error) {
-          setErrors({ general: error.message || '注册失败，请重试' });
+          setErrors({ general: error.message || 'Sign up failed, please try again' });
         } else {
-          setSuccessMessage('注册成功！欢迎加入宠物之家');
+          setSuccessMessage('Sign up successful! Welcome to Home of Your Pets');
           setTimeout(() => window.location.href = '/', 1500);
         }
       } else {
@@ -72,9 +72,9 @@ const AuthPage: React.FC = () => {
         }
         const { error } = await signIn(email, password);
         if (error) {
-          setErrors({ general: error.message || '登录失败，请检查邮箱和密码' });
+          setErrors({ general: error.message || 'Login failed, please check your email and password' });
         } else {
-          setSuccessMessage('登录成功！欢迎回来');
+          setSuccessMessage('Login successful! Welcome back');
           setTimeout(() => window.location.href = '/', 1500);
         }
       }
@@ -93,10 +93,10 @@ const AuthPage: React.FC = () => {
               <span className="text-4xl">🐾</span>
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-              宠物之家
+              Home of Your Pets
             </h1>
             <p className="text-purple-600">
-              {isSignUp ? '创建账户，开始你的宠物之旅' : '欢迎回来！'}
+              {isSignUp ? 'Create your account and start your pet journey' : 'Welcome back!'}
             </p>
           </div>
 
@@ -117,7 +117,7 @@ const AuthPage: React.FC = () => {
             {isSignUp && (
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-purple-700 mb-2">
-                  用户名
+                  Username
                 </label>
                 <input
                   id="username"
@@ -125,7 +125,7 @@ const AuthPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-4 py-3 bg-white/80 border-2 border-purple-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-300/50 focus:border-pink-400"
-                  placeholder="请输入用户名"
+                  placeholder="Enter your username"
                 />
                 {errors.username && (
                   <p className="text-red-500 text-sm mt-1">{errors.username}</p>
@@ -135,7 +135,7 @@ const AuthPage: React.FC = () => {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-purple-700 mb-2">
-                邮箱
+                Email
               </label>
               <input
                 id="email"
@@ -152,7 +152,7 @@ const AuthPage: React.FC = () => {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-purple-700 mb-2">
-                密码
+                Password
               </label>
               <input
                 id="password"
@@ -178,10 +178,10 @@ const AuthPage: React.FC = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  处理中...
+                  Processing...
                 </span>
               ) : (
-                isSignUp ? '注册' : '登录'
+                isSignUp ? 'Sign Up' : 'Sign In'
               )}
             </button>
           </form>
@@ -195,7 +195,7 @@ const AuthPage: React.FC = () => {
               }}
               className="text-purple-600 hover:text-pink-600 font-medium transition-colors"
             >
-              {isSignUp ? '已有账户？点击登录' : '没有账户？点击注册'}
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
           </div>
         </div>
@@ -203,7 +203,7 @@ const AuthPage: React.FC = () => {
         {/* Info Box */}
         <div className="mt-6 bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-purple-200 text-center">
           <p className="text-sm text-purple-600">
-            🔒 您的数据安全受到保护
+            🔒 Your data is safe and secure
           </p>
         </div>
       </div>
