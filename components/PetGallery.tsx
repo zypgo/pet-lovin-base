@@ -166,6 +166,7 @@ const PetGallery: React.FC<PetGalleryProps> = ({ images, onSelectImageForEdit })
   };
 
   const handleMixImage = (imageUrl: string) => {
+    console.log('Mix image clicked:', imageUrl);
     if (onSelectImageForEdit) {
       onSelectImageForEdit(imageUrl);
     }

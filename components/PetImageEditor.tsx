@@ -21,6 +21,7 @@ const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery, sele
 
   useEffect(() => {
     if (selectedImage) {
+      console.log('Loading selected image for edit:', selectedImage);
       // Convert URL to File object for editing
       fetch(selectedImage)
         .then(res => res.blob())
@@ -30,6 +31,7 @@ const PetImageEditor: React.FC<PetImageEditorProps> = ({ addImageToGallery, sele
           setOriginalImage(selectedImage);
           setResult(null); // Clear previous results
           setError(''); // Clear previous errors
+          console.log('Image loaded successfully for editing');
         })
         .catch(err => {
           console.error('Error loading selected image:', err);
