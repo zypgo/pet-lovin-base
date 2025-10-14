@@ -109,7 +109,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        image: imageBase64Result,
+        imageBase64: imageBase64Result,
         text: responseText
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
