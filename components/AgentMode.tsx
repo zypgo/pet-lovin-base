@@ -134,13 +134,72 @@ const AgentMode: React.FC = () => {
             .order('created_at', { ascending: true });
 
         if (!error && data) {
-            const loadedMessages: Message[] = data.map((msg: any) => ({
-                id: msg.id,
-                role: msg.role === 'user' ? 'user' : 'model',
-                content: msg.content,
-                textContent: msg.content,
-                toolCalls: msg.tool_calls
-            }));
+            const loadedMessages: Message[] = data.map((msg: any) => {
+                // For assistant messages with results, render them properly
+                if (msg.role === 'assistant' && msg.result) {
+                    const result = msg.result;
+                    let displayContent: React.ReactNode = msg.content;
+                    
+                    // Render different result types
+                    if (result.imageBase64) {
+                        // Edited image result
+                        displayContent = <EditedImageDisplay result={result as EditedImageResult} originalImage={result.originalImage || ''} />;
+                    } else if (result.imageUrl && result.caption) {
+                        // Story post result
+                        displayContent = <StoryPostDisplay result={result as SocialPost} />;
+                    } else if (result.breed && result.species) {
+                        // Pet identification result
+                        displayContent = <PetInfoDisplay petData={result} />;
+                    } else if (result.answer_md || result.advice) {
+                        // Health advice or research result
+                        const content = result.answer_md || result.advice;
+                        const citations = result.citations;
+                        displayContent = (
+                            <div className="space-y-3">
+                                <MarkdownResult content={content} />
+                                {citations && citations.length > 0 && (
+                                    <div className="p-3 bg-purple-50 border-2 border-purple-200 rounded-xl">
+                                        <div className="flex items-start">
+                                            <span className="text-purple-600 mr-3 text-lg flex-shrink-0">📚</span>
+                                            <div className="flex-1">
+                                                <p className="font-semibold mb-2 text-purple-700">参考资料来源：</p>
+                                                <div className="grid gap-1">
+                                                    {citations.slice(0, 10).map((citation: string, index: number) => (
+                                                        <a key={index} href={citation} target="_blank" rel="noopener noreferrer nofollow" className="text-xs text-purple-600 hover:text-purple-800 underline break-all line-clamp-1">
+                                                            {index + 1}. {citation}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    } else {
+                        // Fallback to text content
+                        displayContent = <MarkdownResult content={msg.content} />;
+                    }
+                    
+                    return {
+                        id: msg.id,
+                        role: 'model',
+                        content: displayContent,
+                        textContent: msg.content,
+                        result: msg.result,
+                        toolCalls: msg.tool_calls
+                    };
+                }
+                
+                // For user messages or assistant messages without results
+                return {
+                    id: msg.id,
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    content: msg.content,
+                    textContent: msg.content,
+                    toolCalls: msg.tool_calls
+                };
+            });
             setMessages(loadedMessages);
             setCurrentConversationId(convId);
         }

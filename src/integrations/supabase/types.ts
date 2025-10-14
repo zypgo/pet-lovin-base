@@ -45,6 +45,7 @@ export type Database = {
           created_at: string
           embedding: string | null
           id: string
+          result: Json | null
           role: string
           tool_calls: Json | null
           user_id: string
@@ -55,6 +56,7 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           id?: string
+          result?: Json | null
           role: string
           tool_calls?: Json | null
           user_id: string
@@ -65,6 +67,7 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           id?: string
+          result?: Json | null
           role?: string
           tool_calls?: Json | null
           user_id?: string

@@ -661,13 +661,14 @@ ${formattedResults}
         // Generate embedding for assistant response
         const assistantEmbedding = finalResponse ? await generateEmbedding(finalResponse) : null;
         
-        // Save assistant message
+        // Save assistant message with result
         await supabase.from('agent_messages').insert({
           conversation_id: activeConversationId,
           user_id: user.id,
           role: 'assistant',
           content: finalResponse,
           tool_calls: toolCalls.length > 0 ? toolCalls : null,
+          result: result || null,
           embedding: assistantEmbedding
         });
       }
