@@ -1,239 +1,197 @@
-# 🐾 Pet Home
+# 🐾 Pet Home - AI-Powered Pet Companion Application
 
 <div align="center">
 
-An AI-powered companion application for pet lovers, providing intelligent pet management and entertainment experiences through React and AI integration.
+An intelligent web application providing comprehensive AI-driven pet care assistance, built with React and powered by advanced AI technologies.
 
 [![React](https://img.shields.io/badge/React-19.1.1-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.2-blue.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.2.0-purple.svg)](https://vitejs.dev/)
 [![Lovable Cloud](https://img.shields.io/badge/Backend-Lovable%20Cloud-green.svg)](https://lovable.dev)
 
-[✨ Features](#-features) | [🚀 Quick Start](#-quick-start) | [📚 Documentation](#-documentation)
+[✨ Features](#-features) | [🚀 Quick Start](#-quick-start) | [📖 Documentation](#-documentation)
 
 </div>
 
+---
+
 ## ✨ Features
 
-### 🤖 AI-Powered Intelligence
+### 🤖 Agent Chat - Unified AI Assistant
+- **Intelligent Tool Selection**: Automatically selects appropriate tools based on user intent
+- **Multi-modal Input**: Supports both text and image inputs
+- **Conversation History**: Persistent chat history with conversation management
+- **RAG-Enhanced Memory**: Retrieves relevant context from past conversations using vector similarity search
+- **Function Calling**: Integrates pet identification, health advice, image editing, and story creation capabilities
 
-- **🔍 Smart Pet Identification** - Upload a photo to instantly identify pet breeds and characteristics
-- **💊 AI Health Advisor** - Professional pet health consultation and guidance with RAG-enhanced accuracy
-- **📖 Story Creator** - AI-assisted creation of heartwarming pet stories and social media content
-- **🖼️ Image Editor** - Apply AI-powered filters and effects to pet photos
-- **✨ Agent Chat** - Unified intelligent assistant that integrates all AI capabilities
+### 🔍 Smart Pet Identification
+- **Breed Detection**: Accurately identifies pet species and breed from uploaded images
+- **Comprehensive Analysis**: Provides detailed information including physical characteristics, temperament, care requirements, and health considerations
+- **Powered by**: Google Gemini 2.5 Flash vision model
 
-### 🎨 Practical Tools
+### 💊 AI Health Advisor
+- **Dual Search Modes**: Standard mode with Perplexity citations, or Deep Research mode with comprehensive analysis
+- **Consultation History**: Automatically saves all health consultations
+- **Citation Support**: Displays source URLs for credibility
+- **Medical Disclaimer**: Appropriate warnings included
 
-- **📸 Pet Gallery** - Beautiful display and management of pet photos
-- **🎯 Personalized Modes** - Multiple interface themes and interaction modes
-- **🌐 Multi-language Support** - Interface available in multiple languages
+### 🎨 Creative Pet Playground
+- **AI Image Editing**: Transform pet photos with text prompts
+- **Before/After Comparison**: Side-by-side display
+- **Gallery Integration**: Auto-save to private gallery
+- **Powered by**: Lovable AI Gateway with Gemini 2.5 Flash Image Preview
 
-### 🌟 User Experience
+### 📖 Pet Story Creator
+- **Two-Stage Generation**: AI-generated caption + artwork
+- **Voice Input**: Experimental speech-to-text support
+- **Auto-Save**: Stories saved to database
 
-- **Responsive Design** - Perfect adaptation for desktop and mobile devices
-- **Smooth Animations** - Carefully designed transitions and interactions
-- **Fast Performance** - Optimized resource management and loading
-- **Secure Authentication** - User accounts with data persistence
+### 🖼️ Pet Gallery
+- **Dual Gallery System**: Private and community galleries
+- **Social Features**: Likes, sharing, user attribution
+- **Quick Edit**: Direct editing from gallery
+
+---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 19.1.1** - Modern UI framework
-- **TypeScript** - Type-safe JavaScript
-- **Vite** - Lightning-fast build tool
-- **Tailwind CSS** - Utility-first styling
+- **React 19.1.1** with TypeScript 5.8.2
+- **Vite 6.2.0** for fast development
+- **Tailwind CSS** with custom design system
+- **DOMPurify** and **Marked.js** for safe markdown rendering
 
 ### Backend
-- **Lovable Cloud** - Full-stack cloud platform powered by Supabase
-- **Edge Functions** - Serverless backend logic
-- **PostgreSQL** - Relational database for data persistence
-- **Supabase Auth** - Secure authentication system
+- **Lovable Cloud** (powered by Supabase)
+- **PostgreSQL** with pgvector extension
+- **Edge Functions** (Deno runtime)
+- **Supabase Auth** and **Storage**
+- **Row Level Security** policies
 
 ### AI Integration
-- **Lovable AI Gateway** - Seamless access to AI models
-- **Google Gemini 2.5 Flash** - Multi-modal AI for text and image understanding
-- **Google Gemini 2.5 Flash Image** - AI image generation and editing
-- **Perplexity API** - Intelligent search and information retrieval for health advice
+- **Lovable AI Gateway**: Gemini 2.5 Flash Image Preview
+- **Google Gemini 2.5 Flash**: Vision, function calling, embeddings
+- **Perplexity API**: Web search with citations
+- **OpenRouter API**: Image generation
+
+---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- **Node.js** >= 18.0.0
-- **npm** or **yarn**
-
-### 1. Clone the Repository
 ```bash
+# 1. Clone repository
 git clone https://github.com/yourusername/pet-home.git
 cd pet-home
-```
 
-### 2. Install Dependencies
-```bash
+# 2. Install dependencies
 npm install
-# or
-yarn install
-```
 
-### 3. Environment Setup
-The project uses Lovable Cloud, which automatically configures the necessary environment variables. No manual setup required for:
-- Database connection
-- Authentication
-- AI API keys
-- Edge functions
-
-### 4. Start Development Server
-```bash
+# 3. Start development server
 npm run dev
+
+# 4. Open browser
+# Visit http://localhost:5173
 ```
 
-### 5. Open Browser
-Visit [http://localhost:5173](http://localhost:5173) to start exploring!
+Environment variables are auto-configured by Lovable Cloud.
+
+---
 
 ## 📁 Project Structure
 
 ```
 pet-home/
 ├── components/              # React components
-│   ├── AgentMode.tsx       # AI agent chat interface
-│   ├── PetIdentifier.tsx   # Pet identification
+│   ├── AgentMode.tsx       # Agent chat with RAG
+│   ├── PetIdentifier.tsx   # Breed identification
 │   ├── PetHealthAdvisor.tsx # Health consultation
-│   ├── PetStoryCreator.tsx # Story creation
 │   ├── PetImageEditor.tsx  # Image editing
-│   ├── PetGallery.tsx      # Pet gallery
+│   ├── PetStoryCreator.tsx # Story generator
+│   ├── PetGallery.tsx      # Dual gallery
 │   └── ...
-├── services/               # API services
-│   ├── geminiService.ts    # Gemini AI service (legacy)
-│   └── perplexityService.ts # Perplexity search (legacy)
-├── supabase/
-│   └── functions/          # Edge functions
-│       ├── agent-chat/     # Agent chat backend
-│       ├── pet-identify/   # Pet identification
-│       ├── health-advice/  # Health consultation
-│       ├── image-edit/     # Image editing
-│       ├── image-generate/ # Image generation
-│       └── story-caption/  # Story creation
+├── services/               # API service layers
+├── supabase/functions/     # Edge functions
+│   ├── agent-chat/         # Main orchestrator
+│   ├── pet-identify/       # Pet identification
+│   ├── health-advice/      # Health consultation
+│   ├── image-edit/         # Image editing
+│   └── ...
 ├── src/
 │   ├── contexts/           # React contexts
 │   ├── pages/             # Page components
-│   └── integrations/      # Third-party integrations
-├── App.tsx                # Main application component
-├── index.tsx              # Application entry point
-└── vite.config.ts         # Vite configuration
+│   └── integrations/      # Supabase client
+└── App.tsx                # Main app
 ```
 
-## 🎯 Feature Details
+---
 
-### 🔍 Smart Pet Identification
-- Supports multiple image formats
-- Accurately identifies pet breeds, age, and characteristics
-- Provides detailed pet information and care recommendations
-- Uses Google Gemini's multi-modal capabilities
+## 🎯 Core Features
 
-### 💊 AI Health Advisor
-- Preliminary diagnosis based on symptom descriptions
-- Emergency situation identification and handling suggestions
-- Daily care and nutrition guidance
-- RAG-enhanced responses with cited sources using Perplexity API
-- **Important**: Includes medical disclaimer - not a substitute for professional veterinary care
+### Agent Chat Architecture
+**Flow**: User input → RAG retrieval → Gemini function calling → Tool execution → Gemini synthesis → Save with embeddings
 
-### 📖 Story Creator
-- AI-assisted creative writing
-- Personalized story plot generation
-- Supports various story styles and lengths
-- Generates accompanying images for social media
-- Voice input support (experimental)
+**Available Tools**: Pet identification, health advice (standard/deep), image editing, story creation, web research, memory saving
 
-### 🖼️ Image Editor
-- Real-time filter and effect preview
-- Pet photo enhancement tools
-- AI-powered image generation and editing
-- Quick social media sharing
+### RAG Implementation
+- Embeddings: Gemini text-embedding-004 (768 dimensions)
+- Storage: PostgreSQL pgvector
+- Search: Cosine similarity on `agent_messages` and `user_memories` tables
+- Context injection into system prompts
 
-### ✨ Agent Chat
-- Unified conversational interface
-- Automatically selects appropriate tools based on user intent
-- Integrates all AI capabilities (identification, health advice, image editing, story creation)
-- Conversation history with persistent storage
+### Database Schema
+- `profiles`: User information
+- `agent_conversations`: Conversation metadata
+- `agent_messages`: Messages with embeddings and tool results
+- `user_memories`: Explicit saved memories with embeddings
+- `pet_identifications`, `health_consultations`, `pet_stories`: Feature-specific data
+- `gallery_images`: Private and public image storage
 
-## 🔐 Authentication & Data
+All tables protected by RLS policies.
 
-### User System
-- **Sign Up / Sign In**: Email-based authentication
-- **Auto-confirm**: Email verification automatically enabled for development
-- **Profile Management**: Store and manage user preferences
-- **Data Persistence**: All conversations and created content are saved
-
-### Privacy & Security
-- Row Level Security (RLS) policies on all database tables
-- User data isolated and protected
-- Secure API key management via Lovable Cloud secrets
-
-## 📊 Database Schema
-
-### Tables
-- **`profiles`**: User profile information
-- **`agent_messages`**: Agent chat conversation history with tool results
-- **`agent_conversations`**: Conversation metadata and timestamps
+---
 
 ## 🌐 Deployment
 
-The application is automatically deployed through Lovable Cloud. Click the "Publish" button in the Lovable editor to deploy your changes.
+Click **Publish** in Lovable editor for automatic deployment to `*.lovable.app`.
 
-### Custom Domain
-Connect your own domain through Project Settings → Domains (requires paid plan)
+Custom domains available on paid plans.
 
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. **Fork** the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a **Pull Request**
+---
 
 ## 📝 Changelog
 
+### v3.0.0 (2025-10-14)
+- Rebranded to "Agent Chat" with Sparkles icon
+- Implemented RAG memory system
+- Added dual gallery and consultation history
+- Enhanced image editor with comparisons
+
 ### v2.0.0 (2025-10-14)
-- 🎉 Migrated to Lovable Cloud backend
-- ✨ Added user authentication system
-- 🔒 Implemented database with RLS policies
-- 💬 Added conversation history persistence
-- 🎨 Rebranded "AI Chat" to "Agent Chat" with new icon
-- 🖼️ Enhanced image display in conversation history
+- Migrated to Lovable Cloud
+- Added authentication and RLS
+- Conversation persistence
 
 ### v1.0.0 (2025-09-26)
-- 🎉 Initial release
-- ✨ Core AI features implemented
-- 🎨 User interface design completed
-- 🔧 Performance and UX optimizations
+- Initial release
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - See LICENSE file
 
-## 📞 Contact
-
-- **Author**: Pet Home Team
-- **Project Link**: [https://github.com/yourusername/pet-home](https://github.com/yourusername/pet-home)
+---
 
 ## 🙏 Acknowledgments
 
-Thanks to these excellent projects and services:
-- [React](https://reactjs.org/) - UI library
-- [Vite](https://vitejs.dev/) - Build tool
-- [Lovable](https://lovable.dev/) - Full-stack development platform
-- [Google Gemini](https://ai.google.dev/) - AI capabilities
-- [Perplexity](https://www.perplexity.ai/) - Search and retrieval
-- [Supabase](https://supabase.com/) - Backend infrastructure
+[React](https://reactjs.org/) • [Vite](https://vitejs.dev/) • [Lovable](https://lovable.dev/) • [Google Gemini](https://ai.google.dev/) • [Perplexity](https://www.perplexity.ai/) • [OpenRouter](https://openrouter.ai/) • [Supabase](https://supabase.com/)
 
 ---
 
 <div align="center">
 
-**If this project helps you, please give it a ⭐ Star!**
+**⭐ Star this project if it helps you!**
 
-Made with ❤️ for pet lovers everywhere
+Made with ❤️ for pet lovers everywhere 🐾
 
 </div>
