@@ -21,9 +21,9 @@ serve(async (req) => {
       );
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      console.error("OPENROUTER_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not configured");
       return new Response(
         JSON.stringify({ error: 'Service configuration error. Please contact support.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -32,64 +32,61 @@ serve(async (req) => {
 
     console.log('Generating caption for story');
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=" + GEMINI_API_KEY, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://yourapp.com",
-        "X-Title": "Pet Happy Life"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
+        contents: [
           {
             role: "user",
-            content: `Based on the following pet story, generate a social media post. The story is: "${story}". Your output must be a JSON object with two keys: "caption" (a fun, engaging post for social media with emojis and hashtags) and "imagePrompt" (a short, descriptive prompt in English for an AI image generator to create a cute, artistic image that captures the essence of the story).`
+            parts: [{
+              text: `Based on the following pet story, generate a social media post. The story is: "${story}". Your output must be a JSON object with two keys: "caption" (a fun, engaging post for social media with emojis and hashtags) and "imagePrompt" (a short, descriptive prompt in English for an AI image generator to create a cute, artistic image that captures the essence of the story).`
+            }]
           }
         ],
         tools: [
           {
-            type: "function",
-            function: {
-              name: "create_social_post",
-              description: "Create a social media post with caption and image prompt",
-              parameters: {
-                type: "object",
-                properties: {
-                  caption: {
-                    type: "string",
-                    description: "A fun, engaging social media post with emojis and hashtags"
+            function_declarations: [
+              {
+                name: "create_social_post",
+                description: "Create a social media post with caption and image prompt",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    caption: {
+                      type: "string",
+                      description: "A fun, engaging social media post with emojis and hashtags"
+                    },
+                    imagePrompt: {
+                      type: "string",
+                      description: "A short descriptive prompt for AI image generation"
+                    }
                   },
-                  imagePrompt: {
-                    type: "string",
-                    description: "A short descriptive prompt for AI image generation"
-                  }
-                },
-                required: ["caption", "imagePrompt"],
-                additionalProperties: false
+                  required: ["caption", "imagePrompt"]
+                }
               }
-            }
+            ]
           }
         ],
-        tool_choice: { type: "function", function: { name: "create_social_post" } }
+        tool_config: {
+          function_calling_config: {
+            mode: "ANY",
+            allowed_function_names: ["create_social_post"]
+          }
+        }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenRouter error:', response.status, errorText);
+      console.error('Gemini API error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please add funds to your OpenRouter account." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
@@ -102,16 +99,16 @@ serve(async (req) => {
     const data = await response.json();
     console.log('Caption generation response received');
 
-    // Extract tool call result
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall || !toolCall.function?.arguments) {
+    // Extract function call result from Gemini response
+    const functionCall = data.candidates?.[0]?.content?.parts?.[0]?.functionCall;
+    if (!functionCall || !functionCall.args) {
       return new Response(
         JSON.stringify({ error: 'No valid response from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { caption, imagePrompt } = JSON.parse(toolCall.function.arguments);
+    const { caption, imagePrompt } = functionCall.args;
 
     if (!caption || !imagePrompt) {
       return new Response(
