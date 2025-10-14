@@ -205,9 +205,9 @@ serve(async (req) => {
         parameters: {
           type: "object",
           properties: {
-            prompt: { type: "string", description: "Story or post description" }
+            story: { type: "string", description: "Story or post description" }
           },
-          required: ["prompt"]
+          required: ["story"]
         }
       },
       {
