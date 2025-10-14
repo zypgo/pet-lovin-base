@@ -72,7 +72,7 @@ export async function editPetImage(file: File, prompt: string): Promise<EditedIm
   try {
     const imagePart = await fileToGenerativePart(file);
     
-    const { data, error } = await supabase.functions.invoke('image-edit', {
+    const { data, error } = await supabase.functions.invoke('image-edit-openrouter', {
       body: { 
         imageBase64: imagePart.inlineData.data, 
         prompt 
@@ -98,8 +98,8 @@ export async function createPetStoryPost(story: string): Promise<SocialPost> {
     
     const { caption, imagePrompt } = captionData;
     
-    // Now generate image using Lovable AI
-    const { data: imageData, error: imageError } = await supabase.functions.invoke('image-generate', {
+    // Now generate image using OpenRouter
+    const { data: imageData, error: imageError } = await supabase.functions.invoke('image-generate-openrouter', {
       body: { 
         prompt: `Create a cute, artistic image based on this prompt: ${imagePrompt}. The image should be suitable for social media sharing with a square 1:1 aspect ratio.`
       }
