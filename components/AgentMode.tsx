@@ -338,7 +338,8 @@ const AgentMode: React.FC = () => {
             }
 
             const toolCallId = `tool-${Date.now()}`;
-            setMessages(prev => [...prev, { id: toolCallId, role: 'model', content: <Spinner text="Thinking... (awaiting tool)" /> }]);
+            // Add thinking message but mark it as temporary
+            setMessages(prev => [...prev, { id: toolCallId, role: 'model', content: <Spinner text="Thinking... (awaiting tool)" />, textContent: '' }]);
 
             const resp = await fetch(`${SUPABASE_URL}/functions/v1/agent-chat`, {
                 method: 'POST',
@@ -438,25 +439,29 @@ const AgentMode: React.FC = () => {
                 loadConversations();
             }
 
-            if (resultDisplay) {
-                setMessages(prev => [...prev, {
-                    id: `res-${Date.now()}`,
-                    role: 'model',
-                    content: resultDisplay,
-                    textContent: responseText,
-                    result: result,
-                    toolCalls: data?.toolCalls
-                }]);
-            } else if (responseText) {
-                setMessages(prev => [...prev, {
-                    id: `msg-${Date.now()}`,
-                    role: 'model',
-                    content: <MarkdownResult content={responseText} />,
-                    textContent: responseText
-                }]);
-            }
-            // Remove the thinking bubble after rendering the final result
-            setMessages(prev => prev.filter(m => m.id !== toolCallId));
+            // Remove the thinking bubble first, then add the final result
+            setMessages(prev => {
+                const filteredMessages = prev.filter(m => m.id !== toolCallId);
+                
+                if (resultDisplay) {
+                    return [...filteredMessages, {
+                        id: `res-${Date.now()}`,
+                        role: 'model',
+                        content: resultDisplay,
+                        textContent: responseText,
+                        result: result,
+                        toolCalls: data?.toolCalls
+                    }];
+                } else if (responseText) {
+                    return [...filteredMessages, {
+                        id: `msg-${Date.now()}`,
+                        role: 'model',
+                        content: <MarkdownResult content={responseText} />,
+                        textContent: responseText
+                    }];
+                }
+                return filteredMessages;
+            });
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
