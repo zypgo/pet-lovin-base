@@ -429,16 +429,15 @@ serve(async (req) => {
               result = { error: '请先上传要编辑的照片' };
               break;
             }
-            result = await callEdgeFunction('image-edit', {
+            result = await callEdgeFunction('image-edit-openrouter', {
               imageBase64: imageBase64,
-              mimeType: mimeType,
               prompt: toolArgs.prompt
             });
             break;
 
           case 'create_pet_story':
             result = await callEdgeFunction('story-caption', {
-              prompt: toolArgs.prompt
+              story: toolArgs.story
             });
             break;
 
