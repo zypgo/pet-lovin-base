@@ -436,9 +436,28 @@ serve(async (req) => {
             break;
 
           case 'create_pet_story':
-            result = await callEdgeFunction('story-caption', {
+            // Step 1: Generate caption and image prompt
+            const storyResult = await callEdgeFunction('story-caption', {
               story: toolArgs.story
             });
+            
+            if (storyResult.error) {
+              result = storyResult;
+              break;
+            }
+            
+            // Step 2: Generate image using the image prompt
+            const imageResult = await callEdgeFunction('image-generate-openrouter', {
+              prompt: storyResult.imagePrompt
+            });
+            
+            // Combine results
+            result = {
+              caption: storyResult.caption,
+              imagePrompt: storyResult.imagePrompt,
+              imageUrl: imageResult.imageUrl || null,
+              imageError: imageResult.error || null
+            };
             break;
 
           case 'web_research':
