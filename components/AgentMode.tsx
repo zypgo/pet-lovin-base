@@ -8,6 +8,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from '../src/contexts/AuthContext';
+import { Sparkles } from 'lucide-react';
 
 marked.setOptions({ gfm: true });
 
@@ -553,8 +554,8 @@ const AgentMode: React.FC = () => {
                         <div className="flex-1"></div>
                         <div className="flex items-center justify-center">
                             <div className="relative">
-                                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
-                                    <span className="text-2xl">🤖</span>
+                                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                                    <Sparkles className="w-8 h-8 text-white" />
                                 </div>
                                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white flex items-center justify-center">
                                     <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
@@ -590,8 +591,8 @@ const AgentMode: React.FC = () => {
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
                         <div className="flex items-end space-x-2 max-w-md">
                             {msg.role === 'model' && (
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mb-1">
-                                    <span className="text-sm">🤖</span>
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0 mb-1 shadow-md">
+                                    <Sparkles className="w-4 h-4 text-white" />
                                 </div>
                             )}
                             <div className={`p-4 rounded-2xl text-sm shadow-lg ${

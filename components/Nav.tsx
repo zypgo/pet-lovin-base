@@ -88,8 +88,8 @@ const Nav: React.FC<NavProps> = ({ activePage, setActivePage }) => {
         <NavButton
             isActive={activePage === Page.Agent}
             onClick={() => setActivePage(Page.Agent)}
-            label="AI Chat"
-            description="🤖 Smart Helper"
+            label="Agent Chat"
+            description="✨ Smart Helper"
             icon={<AgentIcon />}
             color="from-blue-400 to-purple-500"
         />
